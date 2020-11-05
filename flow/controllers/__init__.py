@@ -19,11 +19,14 @@ from flow.controllers.car_following_models import CFMController, \
 from flow.controllers.velocity_controllers import FollowerStopper, \
     PISaturation, NonLocalFollowerStopper
 
+# adversarial controllers
+from flow.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked
+
 # lane change controllers
 from flow.controllers.base_lane_changing_controller import \
     BaseLaneChangeController
 from flow.controllers.lane_change_controllers import StaticLaneChanger, \
-    SimLaneChangeController
+    SimLaneChangeController, AILaneChangeController
 
 # routing controllers
 from flow.controllers.base_routing_controller import BaseRouter
