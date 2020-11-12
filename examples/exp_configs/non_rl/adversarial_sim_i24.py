@@ -4,11 +4,18 @@ import os
 import numpy as np
 
 from flow.controllers.car_following_models import IDMController
-# from flow.controllers.lane_change_controllers import StaticLaneChanger
+
+#Specific to using to control adverarial vehicles:
+from flow.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked
+from flow.controllers.lane_change_controllers import StaticLaneChanger
+from flow.controllers.routing_controllers import i24_adversarial_router
+
+
 # from flow.controllers.lane_change_controllers import AILaneChangeController
 # from flow.controllers.lane_change_controllers import I24_routing_LC_controller
-# from flow.controllers.routing_controllers import I24Router
 # from flow.controllers.routing_controllers import I210Router
+
+# For flow:
 from flow.core.params import SumoParams
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
@@ -22,23 +29,68 @@ from flow.core.params import SumoCarFollowingParams
 import flow.config as config
 from flow.envs import TestEnv
 
+#Needed for i24 network:
 from flow.networks.I24_Subnetwork_test_merge import I24SubNetwork
 from flow.networks.I24_Subnetwork_test_merge import EDGES_DISTRIBUTION
 
 
-horizon = 7500 #number of simulation steps
+
+horizon = 8000 #number of simulation steps
 sim_step = .1 #Simulation step size
+
+WARMUP_STEPS = 1000
 
 HUMAN_INFLOW = 2050 #Per lane flow rate in veh/hr
 inflow_speed = 25.5
 
-ON_RAMP_FLOW = 1500
+ON_RAMP_FLOW = 500
 
 highway_start_edge = 'Eastbound_3'
+
+lane_list = ['0','1','2','3']
+HUMAN_INFLOW_RATES_MAIN = [HUMAN_INFLOW,HUMAN_INFLOW,HUMAN_INFLOW*.8,HUMAN_INFLOW*.5]
+
 
 vehicles = VehicleParams()
 
 inflow = InFlows()
+
+
+# Parameters with respect to adversarial attacks:
+
+want_adversaries = True
+
+adversary_inflows = 50
+
+adversary_accel_controller = (ACC_Switched_Controller_Attacked,{'warmup_steps':WARMUP_STEPS}) #Default values
+
+adversarial_router = (i24_adversarial_router,{})
+
+
+if(want_adversaries):   
+
+    vehicles.add(
+        "attacker",
+        num_vehicles=0,
+        color="blue",
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=0,
+        ),
+        # this is only right of way on
+        car_following_params=SumoCarFollowingParams(
+            speed_mode=0  # right of way at intersections + obey limits on deceleration
+        ),
+        acceleration_controller=adversary_accel_controller,
+        lane_change_controller=(StaticLaneChanger,{}),
+        routing_controller=adversarial_router, #This breaks everything
+    )
+
+    inflow.add(
+        veh_type="attacker",
+        edge=highway_start_edge,
+        vehs_per_hour=adversary_inflows,
+        departLane='random',
+        departSpeed=inflow_speed)
 
 
 human_accel_controller = (IDMController, {
@@ -53,6 +105,7 @@ human_accel_controller = (IDMController, {
 want_IDM = False
 
 # Decide whether to use IDM or the default SUMO model:
+
 if(want_IDM):
     vehicles.add(
         "human_main",
@@ -111,9 +164,6 @@ else:
         ),
     )
 
-lane_list = ['0','1','2','3']
-HUMAN_INFLOW_RATES_MAIN = [HUMAN_INFLOW,HUMAN_INFLOW,HUMAN_INFLOW*.8,HUMAN_INFLOW*.5]
-
 for i,lane in enumerate(lane_list):
     inflow.add(
         veh_type="human_main",
@@ -152,7 +202,7 @@ flow_params = dict(
     sim=SumoParams(
         sim_step=sim_step,
         render=False,
-        color_by_speed=True,
+        color_by_speed=False,
         use_ballistic=True
     ),
 
