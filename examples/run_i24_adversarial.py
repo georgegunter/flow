@@ -319,7 +319,16 @@ def iter_run(attack_duration_list,attack_magnitude_list,attack_inflow_list,emiss
     print('Simulations finished.')
                     
                     
-        
+
+if __name__ == "__main__":
+	attack_duration_list = [2,5,10,15]
+	attack_magnitude_list = [-.1,-.2,-.5,-1.0]
+	attack_inflow_rate = [10,50,100,200,500,1000]
+
+	rename_file = True
+
+	want_parallel = True
+
     
     
 
