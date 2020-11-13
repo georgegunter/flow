@@ -306,6 +306,22 @@ def inflow_iter(attack_duration,attack_magnitude,attack_inflows,emission_path,re
 	
 	print('Simulations finished.')
 
+def iter_run(attack_duration_list,attack_magnitude_list,attack_inflow_list,emission_path,rename_file,want_parallel):
+    
+    for attack_inflow in attack_inflow_list:
+        for attack_duration in attack_duration_list:
+            for attack_magnitude in attack_magnitude_list:
+                if(want_parallel):
+                    run_attack_sim_ray(attack_duration,attack_magnitude,attack_inflow,emission_path,rename_file)
+                else:
+                    run_attack_sim(attack_duration,attack_magnitude,attack_inflow,emission_path,rename_file)
+                
+    print('Simulations finished.')
+                    
+                    
+        
+    
+    
 
 
 
