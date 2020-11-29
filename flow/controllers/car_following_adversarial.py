@@ -112,11 +112,13 @@ class ACC_Switched_Controller_Attacked(BaseController):
 
         if((s > max_follow_dist) or (v >= self.V_m)):
             # Switch to speed cotnrol if leader too far away, and max speed at V_m:
-            u = self.Cruise_Control_accel(v)
+            u_des = self.Cruise_Control_accel(v)
         else:
-            u = self.ACC_accel(v,v_l,s)
+            u_des = self.ACC_accel(v,v_l,s)
 
-        return u
+        u_act = np.min([2.0,u_des])
+
+        return u_act
 
     def Cruise_Control_accel(self,v):
         return self.k_3*(self.V_m - v)

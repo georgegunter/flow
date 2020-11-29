@@ -31,7 +31,7 @@ from flow.controllers.lane_change_controllers import StaticLaneChanger, \
 # routing controllers
 from flow.controllers.base_routing_controller import BaseRouter
 from flow.controllers.routing_controllers import ContinuousRouter, \
-    GridRouter, BayBridgeRouter, I210Router, i24_adversarial_router
+    GridRouter, BayBridgeRouter, I210Router, i24_adversarial_router, I24Router
 
 __all__ = [
     "RLController", "BaseController", "BaseLaneChangeController", "BaseRouter",

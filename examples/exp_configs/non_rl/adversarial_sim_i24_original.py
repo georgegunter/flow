@@ -33,12 +33,22 @@ from flow.envs import TestEnv
 from flow.networks.I24_Subnetwork_test_merge import I24SubNetwork
 from flow.networks.I24_Subnetwork_test_merge import EDGES_DISTRIBUTION
 
+#Original adversarial sim
 
-acc_penetration=.01
-inflow=2400
-attack_magnitude=-.05
-attack_duration=5.0
-emission_path = '/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/adversarial_sims/'
+
+##################################
+#TODO:
+'''
+Fix number of cars and var the ACC penetration rate
+Maybe: Change ACC logic to how should work at low speeds?
+'''
+##################################
+
+
+##################################
+#SIMULATION PARAMETERS
+##################################
+
 
 SIM_LENGTH = 800 #simulation length in seconds
 sim_step = .1 #Simulation step size
@@ -47,7 +57,7 @@ horizon = int(np.floor(SIM_LENGTH/sim_step)) #Number of simulation steps
 
 WARMUP_STEPS = 1000 #Attack vehicles don't attack before this # of steps
 
-BASELINE_INFLOW_PER_LANE = inflow #Per lane flow rate in veh/hr
+BASELINE_INFLOW_PER_LANE = 2450 #Per lane flow rate in veh/hr
 
 inflow_speed = 25.5
 
@@ -55,7 +65,11 @@ ON_RAMP_FLOW = 1000
 
 highway_start_edge = 'Eastbound_3'
 
-ACC_PENETRATION_RATE = acc_penetration
+# Parameters with respect to adversarial attacks:
+
+want_adversaries = True
+
+ACC_PENETRATION_RATE = .05
 
 HUMAN_INFLOW = (1-ACC_PENETRATION_RATE)*BASELINE_INFLOW_PER_LANE
 ACC_INFLOW = (ACC_PENETRATION_RATE)*BASELINE_INFLOW_PER_LANE
@@ -69,10 +83,8 @@ vehicles = VehicleParams()
 
 inflow = InFlows()
 
-attack_magnitude = -np.abs(attack_magnitude)
-
-attack_duration = attack_duration
-attack_magnitude = attack_magnitude
+attack_duration = 5
+attack_magnitude = -0.5
 adversary_accel_controller = (ACC_Switched_Controller_Attacked,{
     'warmup_steps':WARMUP_STEPS,
     'Total_Attack_Duration':attack_duration,
@@ -82,66 +94,112 @@ adversarial_router = (i24_adversarial_router,{})
 ##################################
 #DRIVER TYPES AND INFLOWS:
 ##################################
-lane_list = ['0','1','2','3']
 
 
-# ACC params and inflows:
-vehicles.add(
-    "attacker",
-    num_vehicles=0,
-    color="blue",
-    lane_change_params=SumoLaneChangeParams(
-        lane_change_mode=0,
-    ),
-    # this is only right of way on
-    car_following_params=SumoCarFollowingParams(
-        speed_mode=0  # right of way at intersections + obey limits on deceleration
-    ),
-    acceleration_controller=adversary_accel_controller,
-    lane_change_controller=(StaticLaneChanger,{}),
-    routing_controller=adversarial_router, #This breaks everything
-)
-for i,lane in enumerate(lane_list):
+if(want_adversaries):   
+
+    vehicles.add(
+        "attacker",
+        num_vehicles=0,
+        color="blue",
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=0,
+        ),
+        # this is only right of way on
+        car_following_params=SumoCarFollowingParams(
+            speed_mode=0  # right of way at intersections + obey limits on deceleration
+        ),
+        acceleration_controller=adversary_accel_controller,
+        lane_change_controller=(StaticLaneChanger,{}),
+        routing_controller=adversarial_router, #This breaks everything
+    )
+
     inflow.add(
         veh_type="attacker",
         edge=highway_start_edge,
         vehs_per_hour=ACC_INFLOW,
-        departLane=lane,
+        departLane='random',
         departSpeed=inflow_speed)
 
-#handles when vehicles wait too long to try and merge and get stuck on merge:
+
+lane_list = ['0','1','2','3']
+HUMAN_INFLOW_RATES_MAIN = [HUMAN_INFLOW,HUMAN_INFLOW,HUMAN_INFLOW,HUMAN_INFLOW]
+
 human_routing_controller = (I24Router,{'position_to_switch_routes':5})
 
-#Human params and inflows (main line and on-ramp)
-vehicles.add(
-    "human_main",
-    num_vehicles=0,
-    lane_change_params=SumoLaneChangeParams(
-        lane_change_mode=597,
-    ),
-    # this is only right of way on
-    car_following_params=SumoCarFollowingParams(
-        min_gap=0.5,
-        speed_mode=12  # right of way at intersections + obey limits on deceleration
-    ),
-    routing_controller=human_routing_controller,
+human_accel_controller = (IDMController, {
+        "a": 1.3,
+        "b": 2.0,
+        "noise": 0.3,
+        "v0": 27.0,
+        "display_warnings": False,
+        "fail_safe": ['obey_speed_limit'],
+    })
+want_IDM = False
 
-)
+# Decide whether to use IDM or the default SUMO model:
 
-vehicles.add(
-    "human_on_ramp",
-    num_vehicles=0,
-    # color="red",
-    lane_change_params=SumoLaneChangeParams(
-        lane_change_mode=597,
-    ),
-    # this is only right of way on
-    car_following_params=SumoCarFollowingParams(
-        min_gap=0.5,
-        speed_mode=12  # right of way at intersections + obey limits on deceleration
-    ),
-    routing_controller=human_routing_controller,
-)
+if(want_IDM):
+    vehicles.add(
+        "human_main",
+        num_vehicles=0,
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=597,
+        ),
+        # this is only right of way on
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            speed_mode=12  # right of way at intersections + obey limits on deceleration
+        ),
+        acceleration_controller=human_accel_controller,
+        routing_controller=human_routing_controller,
+    )
+
+    vehicles.add(
+        "human_on_ramp",
+        num_vehicles=0,
+        # color="red",
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=597,
+        ),
+        # this is only right of way on
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            speed_mode=12  # right of way at intersections + obey limits on deceleration
+        ),
+        acceleration_controller=human_accel_controller,
+        routing_controller=human_routing_controller,
+    )
+else:
+    vehicles.add(
+        "human_main",
+        num_vehicles=0,
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=597,
+        ),
+        # this is only right of way on
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            speed_mode=12  # right of way at intersections + obey limits on deceleration
+        ),
+        routing_controller=human_routing_controller,
+
+    )
+
+    vehicles.add(
+        "human_on_ramp",
+        num_vehicles=0,
+        # color="red",
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=597,
+        ),
+        # this is only right of way on
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            speed_mode=12  # right of way at intersections + obey limits on deceleration
+        ),
+        routing_controller=human_routing_controller,
+    )
 
 for i,lane in enumerate(lane_list):
     inflow.add(
@@ -158,14 +216,11 @@ inflow.add(
     departLane='random',
     departSpeed=20)
 
-##################################
-#INITIALIZE FLOW PARAMETERS DICT:
-##################################
-
 
 NET_TEMPLATE = os.path.join(
         config.PROJECT_PATH,
         "examples/exp_configs/templates/sumo/i24_subnetwork_fix_merges.net.xml")
+
 
 flow_params = dict(
     # name of the experiment
@@ -185,8 +240,7 @@ flow_params = dict(
         sim_step=sim_step,
         render=False,
         color_by_speed=False,
-        use_ballistic=True,
-        emission_path=emission_path
+        use_ballistic=True
     ),
 
     # environment related parameters (see flow.core.params.EnvParams)
