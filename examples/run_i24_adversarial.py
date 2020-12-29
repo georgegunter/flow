@@ -329,8 +329,8 @@ def run_attack_sim_ray(attack_duration,attack_magnitude,acc_penetration,attack_p
 	if(get_results):
 		try:
 			sim_results = get_sim_results(csv_path = file_path, file_name = file_name_with_version)
-            write_sim_results(sim_results)
-        except:
+			write_sim_results(sim_results)
+		except:
 			sim_results = []
 
 		if(delete_file):
@@ -410,26 +410,26 @@ if __name__ == "__main__":
  	attack_duration_list = [2,4,6,8,10]
  	attack_magnitude_list = [-.2,-.5,-.75,-1.0,-1.25]
  	acc_penetration_list =[.1]
-    attack_penetration_list = [.2]
+	attack_penetration_list = [.2]
  	inflow_list = [2400]
 
  	num_runs = 1
-     
-     
-    for i in range(num_runs):
+	 
+	 
+	for i in range(num_runs):
 		sim_results_list = iter_run(attack_duration_list,
-        	attack_magnitude_list,
-        	acc_penetration_list,
-        	inflow_list,
-        	attack_penetration_list,
-        	emission_path,
-        	rename_file=True,
-        	get_results=True,
-        	delete_file=False,
-        	want_parallel=True)
-        
-        
-    print('Simulations finished.')
+			attack_magnitude_list,
+			acc_penetration_list,
+			inflow_list,
+			attack_penetration_list,
+			emission_path,
+			rename_file=True,
+			get_results=True,
+			delete_file=False,
+			want_parallel=True)
+		
+		
+	print('Simulations finished.')
 
 
 

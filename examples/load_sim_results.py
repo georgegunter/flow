@@ -314,17 +314,17 @@ def get_sim_results(csv_path,file_name,print_progress=True):
 	return x
 
 def write_sim_results(p):
-    sim_results = np.loadtxt('sim_results.csv',delimiter=',')
-    sim_results_list = list(sim_results)
-    sim_results_list.append(p)
-    
-    sim_results = np.array(sim_results_list)
-    
-    np.savetxt(sim_results,delimiter=',')
-    
-    return
-    
-        
+	sim_results = np.loadtxt('sim_results.csv',delimiter=',')
+	sim_results_list = list(sim_results)
+	sim_results_list.append(p)
+	
+	sim_results = np.array(sim_results_list)
+	
+	np.savetxt(sim_results,delimiter=',')
+	
+	return
+	
+		
 
 def get_all_sim_results(sims_path,want_parallel=True):
 	files = os.listdir(sims_path)
