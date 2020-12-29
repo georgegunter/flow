@@ -395,20 +395,10 @@ def iter_run(attack_duration_list,
 					
 					
 if __name__ == "__main__":
-
-	emission_path = 'i24_adversarial_sims/'
-
-	attack_magnitude_list,
-	acc_penetration_list,
-	inflow_list,
-	attack_penetration_list,
-	emission_path,
-	rename_file=True,
-	get_results=True,
-	delete_file=False,
-	want_parallel=True)
- 	attack_duration_list = [2,4,6,8,10]
- 	attack_magnitude_list = [-.2,-.5,-.75,-1.0,-1.25]
+    
+    emission_path = 'i24_adversarial_sims/'
+    attack_duration_list = [2,4,6,8,10]
+    attack_magnitude_list = [-.2,-.5,-.75,-1.0,-1.25]
  	acc_penetration_list =[.1]
 	attack_penetration_list = [.2]
  	inflow_list = [2400]
