@@ -38,6 +38,7 @@ from flow.core.experiment import Experiment
 
 # For procesing results:
 from load_sim_results import get_sim_results
+from load_sim_results import write_sim_results
 
 # Ray:
 import ray
@@ -328,7 +329,8 @@ def run_attack_sim_ray(attack_duration,attack_magnitude,acc_penetration,attack_p
 	if(get_results):
 		try:
 			sim_results = get_sim_results(csv_path = file_path, file_name = file_name_with_version)
-		except:
+            write_sim_results(sim_results)
+        except:
 			sim_results = []
 
 		if(delete_file):
@@ -394,63 +396,40 @@ def iter_run(attack_duration_list,
 					
 if __name__ == "__main__":
 
-	attack_duration = 10
-	attack_magnitude = -.8
-	acc_penetration = 0.1
-	attack_penetration = 0.2
-	inflow = 2400
+	emission_path = 'i24_adversarial_sims/'
 
-	emission_path = '/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/adversarial_sims/'
+	attack_magnitude_list,
+	acc_penetration_list,
+	inflow_list,
+	attack_penetration_list,
+	emission_path,
+	rename_file=True,
+	get_results=True,
+	delete_file=False,
+	want_parallel=True)
+ 	attack_duration_list = [2,4,6,8,10]
+ 	attack_magnitude_list = [-.2,-.5,-.75,-1.0,-1.25]
+ 	acc_penetration_list =[.1]
+    attack_penetration_list = [.2]
+ 	inflow_list = [2400]
 
-	flow_dict = get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emission_path,attack_penetration)
-
-	sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,rename_file=True,get_results=True,delete_file=False)
-
-
-
-
-
-
-# 	attack_duration_list = [10]
-# 	attack_magnitude_list = [-.5]
-# 	acc_penetration_list =[.01,.03,.05,0.10,.13,.15]
-# 	# acc_penetration_list = [.01]
-# 	inflow_list = [2400]
-
-# 	num_runs = 1
-
-# 	rename_file = True
-
-# 	emission_path = '/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/adversarial_sims/'
-
-# 	want_parallel = True
-
-# 	sim_results_list_all = []
-
-# 	for i in range(num_runs):
-# 		sim_results_list = iter_run(
-# 			attack_duration_list,
-# 			attack_magnitude_list,
-# 			acc_penetration_list,
-# 			inflow_list,
-# 			emission_path,
-# 			rename_file,
-# 			want_parallel=want_parallel)
-
-# 		for sim_result in sim_results_list:
-# 			sim_results_list_all.append(sim_result)
-
-# 	sim_results_list_all = np.array(sim_results_list_all)
-
-# 	files = os.listdir(emission_path)
-# 	sim_result_version = 1
-# 	for file in files:
-# 		if 'sim_results' in file:
-# 			sim_result_version += 1
-
-# 	file_name = 'sim_results_ver_'+str(sim_result_version)+'.csv'
-# 	np.savetxt(file_name,sim_results_list_all)
-
+ 	num_runs = 1
+     
+     
+    for i in range(num_runs):
+		sim_results_list = iter_run(attack_duration_list,
+        	attack_magnitude_list,
+        	acc_penetration_list,
+        	inflow_list,
+        	attack_penetration_list,
+        	emission_path,
+        	rename_file=True,
+        	get_results=True,
+        	delete_file=False,
+        	want_parallel=True)
+        
+        
+    print('Simulations finished.')
 
 
 
