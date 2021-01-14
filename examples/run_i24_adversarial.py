@@ -42,7 +42,8 @@ from load_sim_results import write_sim_results
 
 # Ray:
 import ray
-ray.init(ignore_reinit_error=True)
+if(not ray.is_initialized()):
+	ray.init(ignore_reinit_error=True)
 
 def get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emission_path,attack_penetration=0.2):
 
@@ -225,7 +226,7 @@ def get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emis
 		# simulation-related parameters
 		sim=SumoParams(
 			sim_step=sim_step,
-			render=True,
+			render=False,
 			color_by_speed=False,
 			use_ballistic=True,
 			emission_path=emission_path
@@ -257,38 +258,39 @@ def get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emis
 
 	return flow_params
 
+def rename_file(csv_path,emission_path,attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow):
+	files = os.listdir(emission_path)
+
+	file_name_no_version = 'Dur_'+str(attack_duration)+'_Mag_'+str(attack_magnitude)+'_Inflow_'+str(inflow)+'_ACCPenetration_'+str(acc_penetration)+'_AttackPenetration_'+str(attack_penetration)
+
+	file_version = 1
+
+	for file in files:
+		if(file_name_no_version in file):
+			file_version += 1
+
+	file_name_with_version = file_name_no_version+'_ver_'+str(file_version)+'.csv'
+
+	file_path = os.path.join(emission_path,file_name_with_version)
+
+	os.rename(csv_path,file_path)
+
+	return file_name_with_version
+
 def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,rename_file,get_results=True,delete_file=False):
 
 	flow_params = get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emission_path,attack_penetration)
 
 	exp = Experiment(flow_params)
 
-	exp.run(num_runs=1,convert_to_csv=True)
+	[info_dict,csv_path] = exp.run(num_runs=1,convert_to_csv=True)
 
-	if(rename_file):
-		files = os.listdir(emission_path)
-
-		for file in files:
-			if(file[:3] != 'Dur' and file[-3:] == 'csv'):
-				csv_path = os.path.join(emission_path,file)
-
-		file_name_no_version = 'Dur_'+str(attack_duration)+'_Mag_'+str(attack_magnitude)+'_Inflow_'+str(inflow)+'_ACCPenetration_'+str(acc_penetration)+'_AttackPenetration_'+str(attack_penetration)
-
-		file_version = 1
-
-		for file in files:
-			if(file_name_no_version in file):
-				file_version += 1
-
-		file_name_with_version = file_name_no_version+'_ver_'+str(file_version)+'.csv'
-
-		file_path = os.path.join(emission_path,file_name_with_version)
-
-
-		os.rename(csv_path,file_path)
+	file_name_with_version = rename_file(csv_path,emission_path,attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow)
 
 	if(get_results):
-		sim_results = get_sim_results(csv_path = file_path, file_name = file_name_with_version)
+		file_path = os.path.join(emission_path,file_name_with_version)
+		sim_results = get_sim_results(csv_path=file_path,file_name=file_name_with_version)
+		write_sim_results(sim_results)
 		if(delete_file):
 			os.remove(file_path)
 
@@ -299,46 +301,50 @@ def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penet
 @ray.remote
 def run_attack_sim_ray(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,rename_file,get_results=True,delete_file=False):
 
-	flow_params = get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emission_path,attack_penetration)
+	sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,rename_file,get_results=get_results,delete_file=delete_file)
 
-	exp = Experiment(flow_params)
+	return sim_results
 
-	exp.run(num_runs=1,convert_to_csv=True)
+	# flow_params = get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emission_path,attack_penetration)
 
-	if(rename_file):
-		files = os.listdir(emission_path)
-		for file in files:
-			if(file[:3] != 'Dur'):
-				csv_path = os.path.join(emission_path,file)
+	# exp = Experiment(flow_params)
 
-		file_name_no_version = 'Dur_'+str(attack_duration)+'_Mag_'+str(attack_magnitude)+'_Inflow_'+str(inflow)+'_ACCPenetration_'+str(acc_penetration)+'_AttackPenetration_'+str(attack_penetration)
+	# [info_dict,csv_path] = exp.run(num_runs=1,convert_to_csv=True)
 
-		file_version = 1
+	# if(rename_file):
+	# 	files = os.listdir(emission_path)
+	# 	# for file in files:
+	# 	# 	if(file[:3] != 'Dur'):
+	# 	# 		csv_path = os.path.join(emission_path,file)
 
-		for file in files:
-			if(file_name_no_version in file):
-				file_version += 1
+	# 	file_name_no_version = 'Dur_'+str(attack_duration)+'_Mag_'+str(attack_magnitude)+'_Inflow_'+str(inflow)+'_ACCPenetration_'+str(acc_penetration)+'_AttackPenetration_'+str(attack_penetration)
 
-		file_name_with_version = file_name_no_version+'_ver_'+str(file_version)+'.csv'
+	# 	file_version = 1
 
-		file_path = os.path.join(emission_path,file_name_with_version)
+	# 	for file in files:
+	# 		if(file_name_no_version in file):
+	# 			file_version += 1
+
+	# 	file_name_with_version = file_name_no_version+'_ver_'+str(file_version)+'.csv'
+
+	# 	file_path = os.path.join(emission_path,file_name_with_version)
 
 
-		os.rename(csv_path,file_path)
+	# 	os.rename(csv_path,file_path)
 
-	if(get_results):
-		try:
-			sim_results = get_sim_results(csv_path = file_path, file_name = file_name_with_version)
-			write_sim_results(sim_results)
-		except:
-			sim_results = []
+	# if(get_results):
+	# 	try:
+	# 		sim_results = get_sim_results(csv_path = file_path, file_name = file_name_with_version)
+	# 		write_sim_results(sim_results)
+	# 	except:
+	# 		sim_results = []
 
-		if(delete_file):
-			os.remove(file_path)
+	# 	if(delete_file):
+	# 		os.remove(file_path)
 
-		return sim_results
-	else:
-		return []
+	# 	return sim_results
+	# else:
+	# 	return []
 
 def iter_run(attack_duration_list,
 	attack_magnitude_list,
@@ -392,17 +398,22 @@ def iter_run(attack_duration_list,
 	# if(want_parallel):
 	# 	sim_result_paths = ray.get(sim_result_ids)
 	# 	return sim_result_paths
-					
-					
+										
 if __name__ == "__main__":
 
 	emission_path = 'i24_adversarial_sims/'
 
-	attack_duration_list = [2,4,6,8,10]
-	attack_magnitude_list = [-.2,-.5,-.75,-1.0,-1.25]
+	# attack_duration_list = [2,4,6,8,10]
+	# attack_magnitude_list = [-.2,-.5,-.75,-1.0,-1.25]
+	# acc_penetration_list =[.1]
+	# attack_penetration_list = [.2]
+	# inflow_list = [2400]
+
+	attack_duration_list = list(np.ones(20,)*2.0)
+	attack_magnitude_list = [-.5]
 	acc_penetration_list =[.1]
-	attack_penetration_list = [.2]
-	inflow_list = [2400]
+	attack_penetration_list = [.1]
+	inflow_list = [2400]	
 	
 	num_runs = 1
 
@@ -414,11 +425,11 @@ if __name__ == "__main__":
 			attack_penetration_list,
 			emission_path,
 			rename_file=True,
-			get_results=True,
+			get_results=False,
 			delete_file=False,
 			want_parallel=True)
 		
-		
+	ray.shutdown()
 	print('Simulations finished.')
 
 

@@ -332,3 +332,6 @@ class TraCISimulation(KernelSimulation):
         # Clear all memory from the stored data. This is useful if this
         # function is called in between resets.
         self.stored_data.clear()
+
+        csv_path = os.path.join(self.emission_path, name)
+        return csv_path

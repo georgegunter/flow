@@ -6,7 +6,8 @@ import sys
 import os
 
 import ray 
-ray.init(ignore_reinit_error=True)
+if(not ray.is_initialized()):
+	ray.init(ignore_reinit_error=True)
 
 #%% useful functions for processing flow data:
 
@@ -238,7 +239,7 @@ def get_sim_params(file):
 	params.append(float(file[i:j]))
 	i = j+1
 
-	while(i < num_char-9):
+	while(file[i:i+3] != 'ver'):
 		while(file[i] != '_'): i+= 1
 		i += 1
 		j = i
@@ -314,13 +315,17 @@ def get_sim_results(csv_path,file_name,print_progress=True):
 	return x
 
 def write_sim_results(p):
-	sim_results = np.loadtxt('sim_results.csv',delimiter=',')
+	files = os.listdir()
+	if('sim_results.csv' in files):
+		sim_results = np.loadtxt('sim_results.csv',delimiter=',')
+	else:
+		sim_results = []
 	sim_results_list = list(sim_results)
 	sim_results_list.append(p)
 	
 	sim_results = np.array(sim_results_list)
 	
-	np.savetxt(sim_results,delimiter=',')
+	np.savetxt('sim_results.csv',sim_results,delimiter=',')
 	
 	return
 	

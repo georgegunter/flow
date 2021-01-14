@@ -171,7 +171,7 @@ class Experiment:
             # Save emission data at the end of every rollout. This is skipped
             # by the internal method if no emission path was specified.
             if self.env.simulator == "traci":
-                self.env.k.simulation.save_emission(run_id=i)
+                csv_path = self.env.k.simulation.save_emission(run_id=i)
 
         # Print the averages/std for all variables in the info_dict.
         for key in info_dict.keys():
@@ -182,4 +182,7 @@ class Experiment:
         print("steps/second:", np.mean(times))
         self.env.terminate()
 
-        return info_dict
+        if convert_to_csv:
+            return [info_dict,csv_path]
+        else:
+            return info_dict
