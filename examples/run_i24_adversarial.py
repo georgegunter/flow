@@ -277,7 +277,7 @@ def rename_file(csv_path,emission_path,attack_duration,attack_magnitude,acc_pene
 
 	return file_name_with_version
 
-def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,rename_file,get_results=True,delete_file=False):
+def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,get_results=True,delete_file=False):
 
 	flow_params = get_flow_params(attack_duration,attack_magnitude,acc_penetration,inflow,emission_path,attack_penetration)
 
@@ -299,9 +299,9 @@ def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penet
 		return []
 
 @ray.remote
-def run_attack_sim_ray(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,rename_file,get_results=True,delete_file=False):
+def run_attack_sim_ray(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,get_results=True,delete_file=False):
 
-	sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,rename_file,get_results=get_results,delete_file=delete_file)
+	sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,get_results=get_results,delete_file=delete_file)
 
 	return sim_results
 
@@ -352,7 +352,6 @@ def iter_run(attack_duration_list,
 	inflow_list,
 	attack_penetration_list,
 	emission_path,
-	rename_file=True,
 	get_results=True,
 	delete_file=False,
 	want_parallel=True):
@@ -377,7 +376,6 @@ def iter_run(attack_duration_list,
 										attack_penetration=attack_penetration,
 										inflow=inflow,
 										emission_path=emission_path,
-										rename_file=rename_file,
 										get_results=get_results,
 										delete_file=delete_file))
 							else:
@@ -424,7 +422,6 @@ if __name__ == "__main__":
 			inflow_list,
 			attack_penetration_list,
 			emission_path,
-			rename_file=True,
 			get_results=False,
 			delete_file=False,
 			want_parallel=True)

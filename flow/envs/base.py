@@ -380,7 +380,8 @@ class Env(gym.Env, metaclass=ABCMeta):
 
             # stop collecting new simulation steps if there is a collision
             if crash:
-                break
+                # break
+                print('Collision Ocurred.')
 
             # render a frame
             self.render()
