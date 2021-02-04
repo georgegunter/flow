@@ -92,15 +92,15 @@ class I24SubNetwork(Network):
 
     def specify_routes(self, net_params):
         """See parent class."""
-        main_rt = EASTBOUND_MAIN[3:8]
+        main_rt = EASTBOUND_MAIN[2:8]
         on_ramp_rt = ['Eastbound_On_1']
         for rt in EASTBOUND_MAIN[6:8]:
             on_ramp_rt.append(rt)
 
-        off_ramp_rt = EASTBOUND_MAIN[3:7]
+        off_ramp_rt = EASTBOUND_MAIN[2:7]
         off_ramp_rt.append('Eastbound_Off_2')
 
-        rts = {'Eastbound_3':[(main_rt, .9),(off_ramp_rt,.1)],
+        rts = {'Eastbound_2':[(main_rt, .9),(off_ramp_rt,.1)],
                 'Eastbound_On_1':[(on_ramp_rt, 1.0)],
                 'Eastbound_7':[(['Eastbound_7','Eastbound_Off_2'],1.0)]
         }

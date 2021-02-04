@@ -154,8 +154,8 @@ class i24_adversarial_router(BaseRouter):
         """See parent class."""
         edge = env.k.vehicle.get_edge(self.veh_id)
 
-        if edge == 'Eastbound_4':
-            new_route = env.available_routes['Eastbound_3'][0][0]
+        if edge == 'Eastbound_3':
+            new_route = env.available_routes['Eastbound_2'][0][0]
         else:
             new_route = super().choose_route(env)
             # print(new_route)

@@ -5,6 +5,7 @@ import pandas as pd
 import sys
 import os
 
+#%%
 import ray 
 if(not ray.is_initialized()):
 	ray.init(ignore_reinit_error=True)
@@ -13,14 +14,14 @@ if(not ray.is_initialized()):
 
 def get_vehicle_data(csv_path=None,
 					 edge_id='Eastbound_7',
-					 time_range=[300,800],
+					 time_range=[300,2000],
 					 pos_range=[0,800],
 					 print_progress=False):
 	'''
 	Needs to be given the path to a flow/SUMO emissions file.
 	'''
-	data_track = pd.read_csv(csv_path,delimiter=',')
-	ids = data_track.id.unique() #numpy array
+	data_frame = pd.read_csv(csv_path,delimiter=',')
+	ids = data_frame.id.unique() #numpy array
 	
 	ids = list(ids)
 	
@@ -29,7 +30,7 @@ def get_vehicle_data(csv_path=None,
 	vehicle_data = {}
 	
 	relevant_fields = \
-		['time','speed','headway','leader_id','follower_id','lane_number','relative_position','fuel','is_malicious']
+		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious']
 	
 	num_ids = len(ids)
 	curr_id_num = 1
@@ -38,13 +39,18 @@ def get_vehicle_data(csv_path=None,
 		if(print_progress):
 			sys.stdout.write('\r'+'Loading: '+str(curr_id_num)+'/'+str(num_ids))
 		
-		data = data_track[(data_track['id'] == id_val) &
-				   (data_track['edge_id'] == edge_id) &
-				   (data_track['time']>=time_range[0]) &
-				   (data_track['time']<=time_range[1]) &
-				   (data_track['relative_position']>=pos_range[0]) &
-				   (data_track['relative_position']<=pos_range[1])]
+		# data = data_frame[(data_frame['id'] == id_val) &
+		# 		   (data_frame['edge_id'] == edge_id) &
+		# 		   (data_frame['time']>=time_range[0]) &
+		# 		   (data_frame['time']<=time_range[1]) &
+		# 		   (data_frame['relative_position']>=pos_range[0]) &
+		# 		   (data_frame['relative_position']<=pos_range[1])]
 		
+
+		data = data_frame[(data_frame['id'] == id_val) &
+				   (data_frame['edge_id'] != 'Eastbound_On_1') &
+				   (data_frame['time']>=time_range[0]) &
+				   (data_frame['time']<=time_range[1])]
 
 		if(len(data) > 100):
 			vehicle_data[id_val] = dict.fromkeys(relevant_fields)
@@ -57,9 +63,9 @@ def get_vehicle_data(csv_path=None,
 
 	return vehicle_data
 
-def get_space_time_diagram(data_track,edge_id,lane_number):
-	space_time_data = data_track[(data_track['lane_number'] == lane_number) &
-				   (data_track['edge_id'] == edge_id)]
+def get_space_time_diagram(data_frame,edge_id,lane_number):
+	space_time_data = data_frame[(data_frame['lane_number'] == lane_number) &
+				   (data_frame['edge_id'] == edge_id)]
 	
 	time = space_time_data['time']
 	position = space_time_data['relative_position']
@@ -143,12 +149,14 @@ def get_total_fuel(vehicle_data,want_HVs=True):
 	return vehicle_fuel_consumption,total_fuel_consumption
 
 def get_total_vehicle_distance(vehicle_data,want_HVs=True):
+
+	#Should rewrite to work for the ring...
+
+
 	veh_ids = list(vehicle_data.keys())
 	
 	vehicle_distance_traveled = {}
 	total_distance_traveled = 0.0
-	
-	
 	
 	for veh_id in veh_ids:
 		
@@ -157,13 +165,11 @@ def get_total_vehicle_distance(vehicle_data,want_HVs=True):
 			is_ACC = (len(np.unique(vehicle_data[veh_id]['is_malicious']))>1)
 			is_HV = not is_ACC
 			if(is_HV):
-				veh_dist_traveled = vehicle_data[veh_id]['relative_position'][-1] - \
-					vehicle_data[veh_id]['relative_position'][0]
+				veh_dist_traveled = vehicle_data[veh_id]['distance'][-1] - vehicle_data[veh_id]['relative_position'][0]
 				vehicle_distance_traveled[veh_id] = veh_dist_traveled
 				total_distance_traveled += veh_dist_traveled
 		else:
-			veh_dist_traveled = vehicle_data[veh_id]['relative_position'][-1] - \
-					vehicle_data[veh_id]['relative_position'][0]
+			veh_dist_traveled = vehicle_data[veh_id]['distance'][-1] - vehicle_data[veh_id]['relative_position'][0]
 			vehicle_distance_traveled[veh_id] = veh_dist_traveled
 			total_distance_traveled += veh_dist_traveled
 		
@@ -249,6 +255,7 @@ def get_sim_params(file):
 	
 	return params
 
+#%%
 @ray.remote
 def get_sim_results_ray(csv_path,file_name,print_progress=True):
 	print('Loading: '+file_name)
@@ -280,8 +287,8 @@ def get_sim_results_ray(csv_path,file_name,print_progress=True):
 	x.append(number_ACCs)
 
 	return x
-
-def get_sim_results(csv_path,file_name,print_progress=True):
+#%%
+def get_sim_results(csv_path,file_name,print_progress=False):
 	print('Loading: '+file_name)
 	flow_vehicle_data = get_vehicle_data(csv_path,print_progress=print_progress)
 

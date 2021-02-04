@@ -32,8 +32,6 @@ class ACC_Switched_Controller_Attacked(BaseController):
             fail_safe=fail_safe,
             noise=noise)
 
-        print('Attack Vehicle Spawned: '+veh_id)
-
         self.veh_id = veh_id
         self.k_1 = 1.0
         self.k_2 = 1.0
@@ -81,9 +79,8 @@ class ACC_Switched_Controller_Attacked(BaseController):
         lane = env.k.vehicle.get_lane(self.veh_id)
         if(self.display_attack_info):
             print('Attacker Finished: '+str(self.veh_id))
-            print('Position of Attack: '+str(pos))
-            print('Lane of Attack: '+str(lane))
-            print('Time finished: '+str(env.step_counter*env.sim_step))
+            print('Attack magnitude: '+str(self.attack_decel_rate))
+            print('Attack duration: '+str(self.Total_Attack_Duration))
 
     def Check_For_Steady_State(self):
         self.numSteps_Steady_State += 1
@@ -110,13 +107,14 @@ class ACC_Switched_Controller_Attacked(BaseController):
 
         max_follow_dist = self.h*self.V_m
 
-        if((s > max_follow_dist) or (v >= self.V_m)):
+        if(s > max_follow_dist or v >= self.V_m):
             # Switch to speed cotnrol if leader too far away, and max speed at V_m:
             u_des = self.Cruise_Control_accel(v)
+            # u_des = np.min([0.0,self.ACC_accel(v,v_l,s)])
         else:
             u_des = self.ACC_accel(v,v_l,s)
 
-        u_act = np.min([2.0,u_des])
+        u_act = np.min([1.0,u_des])
 
         return u_act
 
@@ -150,8 +148,8 @@ class ACC_Switched_Controller_Attacked(BaseController):
         if(perform_attack):
             #Attack under way:
             self.Attack_accel(env)
-            if(self.display_attack_info):
-                print('Attacker: '+self.veh_id+' decel: '+str(self.a)+' speed: '+str(env.k.vehicle.get_speed(self.veh_id)))
+            # if(self.display_attack_info):
+            #     print('Attacker: '+self.veh_id+' decel: '+str(self.a)+' speed: '+str(env.k.vehicle.get_speed(self.veh_id)))
             # Specify that an attack is happening:
             env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
         else:   
@@ -170,5 +168,6 @@ class ACC_Switched_Controller_Attacked(BaseController):
 
     def get_custom_accel(self, this_vel, lead_vel, h):
         """See parent class."""
+        # Not implemented ...
         return self.a
 
