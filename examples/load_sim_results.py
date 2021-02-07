@@ -33,7 +33,7 @@ def get_vehicle_data(csv_path=None,
 	vehicle_data = {}
 	
 	relevant_fields = \
-		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious']
+		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious','is_collision']
 	
 	num_ids = len(ids)
 	curr_id_num = 1
@@ -64,7 +64,8 @@ def get_vehicle_data(csv_path=None,
 				vehicle_data[id_val][field] = np.array(data[field])
 				
 			vehicle_data[id_val]['is_acc'] = len(np.unique(vehicle_data[id_val]['is_malicious'])) > 1
-			
+			vehicle_data[id_val]['has_collision'] = len(np.unique(vehicle_data[id_val]['is_collision'])) > 1
+            
 		curr_id_num += 1
 
 	return vehicle_data
@@ -380,6 +381,8 @@ def get_sim_results(csv_path,file_name,print_progress):
     var_speeds = []
     veh_ids = list(vehicle_data.keys())
     
+    has_collision = False
+    
     for veh_id in veh_ids:
         speed = vehicle_data[veh_id]['speed']
         mean_speed = np.mean(speed)
@@ -392,6 +395,9 @@ def get_sim_results(csv_path,file_name,print_progress):
         fuel_eff = total_distance/total_fuel/1000
         fuel_effs.append(fuel_eff)
         
+        if vehicle_data[veh_id]['has_collision']:
+            has_collision = True
+        
     
     sim_params = get_sim_params(file_name)
 
@@ -403,6 +409,7 @@ def get_sim_results(csv_path,file_name,print_progress):
     x.append(np.mean(fuel_effs))
     x.append(number_veh)
     x.append(number_ACCs)
+    x.append(has_collision)
     
     return x
         
