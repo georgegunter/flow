@@ -13,6 +13,7 @@ if(not ray.is_initialized()):
 #%% useful functions for processing flow data:
 
 def get_vehicle_data(csv_path=None,
+					 data_frame=None,
 					 edge_id='Eastbound_7',
 					 time_range=[300,2000],
 					 pos_range=[0,800],
@@ -20,7 +21,9 @@ def get_vehicle_data(csv_path=None,
 	'''
 	Needs to be given the path to a flow/SUMO emissions file.
 	'''
-	data_frame = pd.read_csv(csv_path,delimiter=',')
+	if(data_frame is None):
+		data_frame = pd.read_csv(csv_path,delimiter=',')
+		
 	ids = data_frame.id.unique() #numpy array
 	
 	ids = list(ids)
@@ -30,7 +33,7 @@ def get_vehicle_data(csv_path=None,
 	vehicle_data = {}
 	
 	relevant_fields = \
-		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious']
+		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious','is_acc']
 	
 	num_ids = len(ids)
 	curr_id_num = 1
@@ -49,6 +52,7 @@ def get_vehicle_data(csv_path=None,
 
 		data = data_frame[(data_frame['id'] == id_val) &
 				   (data_frame['edge_id'] != 'Eastbound_On_1') &
+				   (data_frame['edge_id'] != 'Eastbound_Off_2') &
 				   (data_frame['time']>=time_range[0]) &
 				   (data_frame['time']<=time_range[1])]
 
@@ -58,11 +62,16 @@ def get_vehicle_data(csv_path=None,
 			for field in relevant_fields:
 				
 				vehicle_data[id_val][field] = np.array(data[field])
+				
+			vehicle_data[id_val]['is_acc'] = len(np.unique(vehicle_data[id_val]['is_malicious'])) > 1
 			
 		curr_id_num += 1
 
 	return vehicle_data
 
+
+
+#%%
 def get_space_time_diagram(data_frame,edge_id,lane_number):
 	space_time_data = data_frame[(data_frame['lane_number'] == lane_number) &
 				   (data_frame['edge_id'] == edge_id)]
@@ -101,8 +110,19 @@ def get_testing_data(vehicle_data,data_type):
 			testing_data[veh_id] = speed_vals
 			
 	return testing_data
+
+
+def find_time_integral(times,dx_dt):
+	x = 0
+	num_samples = len(dx_dt)
+
+	for i in range(num_samples-1):
+		dt = times[i+1]-times[i]
+		x += dx_dt[i]*dt
+
+	return x
 	
-def get_total_fuel(vehicle_data,want_HVs=True):
+def get_total_fuel(vehicle_data,want_HVs=False):
 	veh_ids = list(vehicle_data.keys())
 	vehicle_fuel_consumption = {}
 	total_fuel_consumption = 0
@@ -148,7 +168,28 @@ def get_total_fuel(vehicle_data,want_HVs=True):
 		
 	return vehicle_fuel_consumption,total_fuel_consumption
 
-def get_total_vehicle_distance(vehicle_data,want_HVs=True):
+
+# def get_average_fuel(vehicle_data):
+# 	veh_ids = list(vehicle_data.keys())
+# 	ave_fuel_eff = []
+
+# 	for veh_id in veh_ids:
+# 		times = vehicle_data[veh_id]['time']
+# 		total_distance_traveled = vehicle_data[veh_id]['distance'][-1] - vehicle_data[veh_id]['relative_position'][0]
+# 		fuel_consumption_rate = vehicle_data[veh_id]['fuel']
+# 		total_fuel_consumed = find_time_integral(time,fuel_consumption_rate)
+
+# 		fuel_eff = total_distance_traveled/total_fuel_consumed
+
+	
+
+
+
+def get_per_vehicle_speed_data(vehicle_data):
+	return None
+
+
+def get_total_vehicle_distance(vehicle_data,want_HVs=False):
 
 	#Should rewrite to work for the ring...
 
@@ -175,7 +216,7 @@ def get_total_vehicle_distance(vehicle_data,want_HVs=True):
 		
 	return vehicle_distance_traveled,total_distance_traveled
 
-def get_total_travel_time(vehicle_data,want_HVs=True):
+def get_total_travel_time(vehicle_data,want_HVs=False):
 	veh_ids = list(vehicle_data.keys())
 	
 	veh_travel_times ={}
@@ -200,7 +241,7 @@ def get_total_travel_time(vehicle_data,want_HVs=True):
 		
 	return veh_travel_times,total_travel_time
 		
-def get_total_speed_variance(vehicle_data,want_HVs=True):
+def get_total_speed_variance(vehicle_data,want_HVs=False):
 	veh_ids = list(vehicle_data.keys())
 	
 	veh_speed_vars ={}
@@ -288,38 +329,90 @@ def get_sim_results_ray(csv_path,file_name,print_progress=True):
 
 	return x
 #%%
-def get_sim_results(csv_path,file_name,print_progress=False):
-	print('Loading: '+file_name)
-	flow_vehicle_data = get_vehicle_data(csv_path,print_progress=print_progress)
+# def get_sim_results(csv_path,file_name,print_progress=False):
+# 	print('Loading: '+file_name)
+# 	flow_vehicle_data = get_vehicle_data(csv_path,print_progress=print_progress)
 
-	number_veh = len(flow_vehicle_data)
-	number_ACCs = 0
-	for veh_id in list(flow_vehicle_data.keys()):
-		# Note: Because I 'deactivate' ACC attacks by setting their WARMUP_STEPS
-		# to be the length of the sim, 'regular' ACCs are not found using this
-		# method. This only finds malicious ACCs.
-		is_ACC = len(np.unique(flow_vehicle_data[veh_id]['is_malicious'])) > 1
-		if is_ACC:
-			number_ACCs += 1
-		
-	_,total_fuel_consumption = get_total_fuel(flow_vehicle_data)
-	_,total_distance_traveled = get_total_vehicle_distance(flow_vehicle_data)
-	_,total_travel_time = get_total_travel_time(flow_vehicle_data)
-	_,total_speed_var = get_total_speed_variance(flow_vehicle_data)
-	
-	sim_params = get_sim_params(file_name)
+# 	number_veh = len(flow_vehicle_data)
+# 	number_ACCs = 0
+# 	for veh_id in list(flow_vehicle_data.keys()):
+# 		# Note: Because I 'deactivate' ACC attacks by setting their WARMUP_STEPS
+# 		# to be the length of the sim, 'regular' ACCs are not found using this
+# 		# method. This only finds malicious ACCs.
+# 		is_ACC = len(np.unique(flow_vehicle_data[veh_id]['is_malicious'])) > 1
+# 		if is_ACC:
+# 			number_ACCs += 1
+# 		
+# 	_,total_fuel_consumption = get_total_fuel(flow_vehicle_data)
+# 	_,total_distance_traveled = get_total_vehicle_distance(flow_vehicle_data)
+# 	_,total_travel_time = get_total_travel_time(flow_vehicle_data)
+# 	_,total_speed_var = get_total_speed_variance(flow_vehicle_data)
+# 	
+# 	sim_params = get_sim_params(file_name)
 
-	x = []
-	for p in sim_params:
-		x.append(p)
-	x.append(total_fuel_consumption)
-	x.append(total_distance_traveled)
-	x.append(total_travel_time)
-	x.append(total_speed_var)
-	x.append(number_veh)
-	x.append(number_ACCs)
-		
-	return x
+# 	x = []
+# 	for p in sim_params:
+# 		x.append(p)
+# 	x.append(total_fuel_consumption)
+# 	x.append(total_distance_traveled)
+# 	x.append(total_travel_time)
+# 	x.append(total_speed_var)
+# 	x.append(number_veh)
+# 	x.append(number_ACCs)
+# 		
+# 	return x
+
+
+def get_sim_results(csv_path,file_name,print_progress):
+    print('Loading: '+file_name)
+    vehicle_data = get_vehicle_data(csv_path,print_progress=print_progress)
+    
+    number_veh = len(vehicle_data)
+    number_ACCs = 0
+    for veh_id in list(vehicle_data.keys()):
+        is_ACC = len(np.unique(vehicle_data[veh_id]['is_malicious'])) > 1
+        if is_ACC:
+            number_ACCs += 1
+    
+    
+    fuel_effs = []
+    mean_speeds = []
+    var_speeds = []
+    veh_ids = list(vehicle_data.keys())
+    
+    for veh_id in veh_ids:
+        speed = vehicle_data[veh_id]['speed']
+        mean_speed = np.mean(speed)
+        speed_var = np.var(speed)
+        mean_speeds.append(mean_speed)
+        var_speeds.append(speed_var)
+        
+        total_fuel = find_time_integral(vehicle_data[veh_id]['time'],vehicle_data[veh_id]['fuel'])
+        total_distance = vehicle_data[veh_id]['distance'][-1]-vehicle_data[veh_id]['distance'][0]
+        fuel_eff = total_distance/total_fuel/1000
+        fuel_effs.append(fuel_eff)
+        
+    
+    sim_params = get_sim_params(file_name)
+
+    x = []
+    for p in sim_params:
+        x.append(p)
+    x.append(np.mean(mean_speeds))
+    x.append(np.mean(var_speeds))
+    x.append(np.mean(fuel_effs))
+    x.append(number_veh)
+    x.append(number_ACCs)
+    
+    return x
+        
+
+# def i24_spacetime(vehicle_data,)        
+    
+# def ring_road_spacetime(vehicle_data,ring_length):
+#     return None
+    
+     
 
 def write_sim_results(p):
 	files = os.listdir()

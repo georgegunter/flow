@@ -274,45 +274,16 @@ def iter_run(attack_duration_list,
 			for attack_magnitude in attack_magnitude_list:
 				for acc_penetration in acc_penetration_list:
 					for attack_penetration in attack_penetration_list:
-						try:
-							if(want_parallel):
-
-								if(batch_runs != 1):	
-
-									sim_results_temp = run_attack_batch(attack_duration,
-										attack_magnitude,
-										acc_penetration,
-										attack_penetration,
-										ring_length,
-										emission_path,
-										get_results=get_results,
-										delete_file=delete_file,
-										batch_runs=batch_runs)
-
-									for sim in sim_results_temp:
-										sim_results_list.append(sim)
-
-								else:
-									#Uses Ray's parallel processing:
-									sim_result_ids.append(
-										run_attack_sim_ray.remote(
-											attack_duration=attack_duration,
-											attack_magnitude=attack_magnitude,
-											acc_penetration=acc_penetration,
-											attack_penetration=attack_penetration,
-											ring_length=ring_length,
-											emission_path=emission_path,
-											get_results=get_results,
-											delete_file=delete_file))
-							else:
-								sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,ring_length,emission_path,rename_file)
-
-								sim_results_list.append(sim_results)
-						except:
-							print('Simulation failed.')
-
-						#Save to csv after either every batch, or every sim:
-						np.savetxt(csv_name,np.array(sim_results_list))
+						sim_result_ids.append(
+							run_attack_sim_ray.remote(
+								attack_duration=attack_duration,
+								attack_magnitude=attack_magnitude,
+								acc_penetration=acc_penetration,
+								attack_penetration=attack_penetration,
+								ring_length=ring_length,
+								emission_path=emission_path,
+								get_results=True,
+								delete_file=True))
 
 	try:
 		end_time = time.time()
@@ -331,52 +302,52 @@ def iter_run(attack_duration_list,
 
 if __name__ == "__main__":
 	emission_path = 'i24_adversarial_sims/'
-	# acc_penetration = 0.2
-	# attack_penetration = 0.2
-	# attack_magnitude = -.25
-	# attack_duration = 10.0
-	# ring_length = (25*100)+400 #s_eq = 15/vehicle + 400 for vehicle lengths
-
-	# start_time = time.time()
-
-	# sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,ring_length,emission_path,get_results=False,delete_file=False,want_render=False)
-
-	# end_time = time.time()
-
-	# print('Sim results:')
-	# print(sim_results)
-
-	# print('Sim time: '+str(end_time-start_time))
-
-	# ring_length_list = list(np.linspace(25,40,21)*100+400)
-	ring_length_list = [(60*100)+400]
-	acc_penetration_list = [0.2]
-	attack_penetration_list = [0.2]
-	attack_magnitude_list = [-.25,-.5,-.75,-1.0]
-	attack_duration_list = [2.5,5.0,7.5,10.0]
-
-	sim_results_list = []
-	sim_result_ids = [] #For when parallel with ray
+	acc_penetration = 0.2
+	attack_penetration = 0.2
+	attack_magnitude = -.25
+	attack_duration = 10.0
+	ring_length = (25*100)+400 #s_eq = 15/vehicle + 400 for vehicle lengths
 
 	start_time = time.time()
 
-	for ring_length in ring_length_list:
-		for attack_duration in attack_duration_list:
-			for attack_magnitude in attack_magnitude_list:
-				for acc_penetration in acc_penetration_list:
-					for attack_penetration in attack_penetration_list:
-						sim_result_ids.append(
-							run_attack_sim_ray.remote(
-								attack_duration=attack_duration,
-								attack_magnitude=attack_magnitude,
-								acc_penetration=acc_penetration,
-								attack_penetration=attack_penetration,
-								ring_length=ring_length,
-								emission_path=emission_path,
-								get_results=True,
-								delete_file=True))
+	sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,ring_length,emission_path,get_results=False,delete_file=False,want_render=False)
 
-	sim_results_param_sweep = ray.get(sim_result_ids)
+	end_time = time.time()
+
+	print('Sim results:')
+	print(sim_results)
+
+	print('Sim time: '+str(end_time-start_time))
+
+	# ring_length_list = list(np.linspace(25,40,21)*100+400)
+	# ring_length_list = [(30*100)+400]
+	# acc_penetration_list = [0.2]
+	# attack_penetration_list = [0.2]
+	# attack_magnitude_list = [-.25,-.5,-.75,-1.0]
+	# attack_duration_list = [2.5,5.0,7.5,10.0]
+
+	# sim_results_list = []
+	# sim_result_ids = [] #For when parallel with ray
+
+	# start_time = time.time()
+
+	# for ring_length in ring_length_list:
+	# 	for attack_duration in attack_duration_list:
+	# 		for attack_magnitude in attack_magnitude_list:
+	# 			for acc_penetration in acc_penetration_list:
+	# 				for attack_penetration in attack_penetration_list:
+	# 					sim_result_ids.append(
+	# 						run_attack_sim_ray.remote(
+	# 							attack_duration=attack_duration,
+	# 							attack_magnitude=attack_magnitude,
+	# 							acc_penetration=acc_penetration,
+	# 							attack_penetration=attack_penetration,
+	# 							ring_length=ring_length,
+	# 							emission_path=emission_path,
+	# 							get_results=True,
+	# 							delete_file=True))
+
+	# sim_results_param_sweep = ray.get(sim_result_ids)
 
 
 	# sim_results_param_sweep = iter_run(attack_duration_list,

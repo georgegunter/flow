@@ -381,7 +381,10 @@ class Env(gym.Env, metaclass=ABCMeta):
             # stop collecting new simulation steps if there is a collision
             if crash:
                 # break
-                print('Collision Ocurred.')
+                print('Collision Ocurred:')
+                collided_veh = self.k.simulation.kernel_api.simulation.getCollidingVehiclesIDList()
+
+                print('Veh_ids: '+collided_veh)
 
             # render a frame
             self.render()
