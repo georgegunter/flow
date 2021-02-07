@@ -110,6 +110,7 @@ class TraCIVehicle(KernelVehicle):
                 veh_id = '{}_{}'.format(typ['veh_id'], i)
                 self.__vehicles[veh_id] = dict()
                 self.__vehicles[veh_id]['is_malicious'] = 0 #For specific case when we have adversaries
+                self.__vehicles[veh_id]['is_collision'] = 0
                 self.__vehicles[veh_id]['type'] = typ['veh_id']
                 self.__vehicles[veh_id]['initial_speed'] = typ['initial_speed']
                 self.num_vehicles += 1
@@ -316,6 +317,10 @@ class TraCIVehicle(KernelVehicle):
 
         # Handles case when adversaries:
         self.__vehicles[veh_id]["is_malicious"] = 0
+
+        # Tracks when a collision can occur:
+
+        self.__vehicles[veh_id]['is_collision'] = 0
 
 
         # add the vehicle's id to the list of vehicle ids
@@ -615,6 +620,19 @@ class TraCIVehicle(KernelVehicle):
     def set_malicious(self, veh_id, is_malicious=0):
         '''Set the 'is_malicious' value for this vehicle at the given time-step '''
         self.__vehicles[veh_id]["is_malicious"] = is_malicious
+
+    
+    def get_collision(self, veh_id, error=-1001):
+        """
+        Returns 1 if the vehicle just had a collision, otherwise 0.
+        """
+        if isinstance(veh_id, (list, np.ndarray)):
+            return [self.get_malicious(vehID, error) for vehID in veh_id]
+        return self.__vehicles.get(veh_id, {}).get("is_collision", error)
+
+    def set_collision(self,veh_id,is_collision=1):
+
+        self.__vehicles[veh_id]["is_collision"] = is_collision
 
 
     def get_leader(self, veh_id, error=""):

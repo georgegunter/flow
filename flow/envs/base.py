@@ -365,6 +365,21 @@ class Env(gym.Env, metaclass=ABCMeta):
 
             self.additional_command()
 
+
+            # crash encodes whether the simulator experienced a collision
+            crash = self.k.simulation.check_collision()
+
+            # stop collecting new simulation steps if there is a collision
+            if crash:
+                # Prints to whom the collision occurred and writes to file:
+                print('Collision Ocurred:')
+                collided_veh_ids = self.k.simulation.kernel_api.simulation.getCollidingVehiclesIDList()
+                print('Veh_ids: '+str(collided_veh_ids))
+
+                for veh_id in collided_veh_ids:
+                    self.k.vehicle.set_collision(veh_id,is_collision=1) 
+
+
             # advance the simulation in the simulator by one step
             self.k.simulation.simulation_step()
 
@@ -375,16 +390,7 @@ class Env(gym.Env, metaclass=ABCMeta):
             if self.sim_params.render:
                 self.k.vehicle.update_vehicle_colors()
 
-            # crash encodes whether the simulator experienced a collision
-            crash = self.k.simulation.check_collision()
 
-            # stop collecting new simulation steps if there is a collision
-            if crash:
-                # break
-                print('Collision Ocurred:')
-                collided_veh = self.k.simulation.kernel_api.simulation.getCollidingVehiclesIDList()
-
-                print('Veh_ids: '+collided_veh)
 
             # render a frame
             self.render()

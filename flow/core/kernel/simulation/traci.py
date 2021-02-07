@@ -141,7 +141,8 @@ class TraCISimulation(KernelSimulation):
                     "road_grade": kv.get_road_grade(veh_id),
                     "distance": kv.get_distance(veh_id),
                     "fuel":kv.get_fuel_consumption(veh_id),
-                    "is_malicious":kv.get_malicious(veh_id)
+                    "is_malicious":kv.get_malicious(veh_id),
+                    "is_collision":kv.get_collision(veh_id)
                 })
 
     def close(self):
@@ -310,6 +311,7 @@ class TraCISimulation(KernelSimulation):
             "leader_rel_speed",
             "fuel",
             "is_malicious",
+            "is_collision"
         ]
 
         # Update the stored data to push to the csv file.

@@ -33,7 +33,7 @@ def get_vehicle_data(csv_path=None,
 	vehicle_data = {}
 	
 	relevant_fields = \
-		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious','is_acc']
+		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious']
 	
 	num_ids = len(ids)
 	curr_id_num = 1

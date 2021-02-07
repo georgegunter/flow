@@ -46,7 +46,7 @@ def get_flow_params(attack_duration,
 
 	horizon = int(np.floor(SIM_LENGTH/sim_step)) #Number of simulation steps
 
-	WARMUP_STEPS = 1000 #Attack vehicles don't attack before this # of steps
+	WARMUP_STEPS = 3000 #Attack vehicles don't attack before this # of steps
 
 	NUM_VEHICLES = 100
 
@@ -201,7 +201,7 @@ def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penet
 	sim_results = []
 
 	if(get_results):
-		sim_results = get_sim_results(csv_path=file_path,file_name=file_name_with_version)
+		sim_results = get_sim_results(csv_path=file_path,file_name=file_name_with_version,print_progress=False)
 
 	if(delete_file):
 		os.remove(file_path)
@@ -304,13 +304,13 @@ if __name__ == "__main__":
 	emission_path = 'i24_adversarial_sims/'
 	acc_penetration = 0.2
 	attack_penetration = 0.2
-	attack_magnitude = -.25
+	attack_magnitude = -1.0
 	attack_duration = 10.0
 	ring_length = (25*100)+400 #s_eq = 15/vehicle + 400 for vehicle lengths
 
 	start_time = time.time()
 
-	sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,ring_length,emission_path,get_results=False,delete_file=False,want_render=False)
+	sim_results = run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,ring_length,emission_path,get_results=True,delete_file=False,want_render=False)
 
 	end_time = time.time()
 
@@ -358,9 +358,9 @@ if __name__ == "__main__":
 	# 	emission_path,
 	# 	batch_runs=1)
 
-	print(sim_results_param_sweep)
+	# print(sim_results_param_sweep)
 
-	np.savetxt('ring_sim_results_param_sweep.csv',sim_results_param_sweep)
+	# np.savetxt('ring_sim_results_param_sweep.csv',sim_results_param_sweep)
 
 
 
