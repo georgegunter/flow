@@ -438,13 +438,21 @@ if __name__ == "__main__":
 
 	emission_path = 'i24_adversarial_sims/'
 
-	inflow = 1800
+	inflow_list = [1200,1800,2400]
 	acc_penetration = 0.2
-	attack_penetration = 0.001
-	attack_magnitude = -1.0
-	attack_duration = 10.0
+	attack_penetration = 0.2
+	attack_magnitude = -.25
+	attack_duration = 5.0
 
-	run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,get_results=False,delete_file=False,want_render=True)
+	# run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,get_results=False,delete_file=False,want_render=False)
+
+
+	# sim_result_ids = []
+
+	# start_time = time.time()
+
+	for inflow in inflow_list:
+		run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,inflow,emission_path,get_results=False,delete_file=False,want_render=False)
 
 # sim_results = run_attack_batch(attack_duration,
 # 	attack_magnitude,

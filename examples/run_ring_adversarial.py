@@ -323,11 +323,15 @@ if __name__ == "__main__":
 	# print('Sim time: '+str(end_time-start_time))
 
 	# ring_length_list = list(np.linspace(25,60,36)*100+400)
-	ring_length_list = list(np.linspace(40,50,2)*100+400)
+	ring_length_list = list(np.linspace(10,20,4)*100+400)
 	acc_penetration_list = [0.2]
+	# attack_penetration_list = [0.001]
 	attack_penetration_list = [0.2]
-	attack_magnitude_list = [-.25,-.5]
-	attack_duration_list = [5.0,7.5]
+	attack_magnitude_list = [-.25,-.5,-.75,-1.0]
+	attack_duration_list = [2.5,5.0,7.5,10.0]
+
+	# attack_magnitude_list = [0.0]
+	# attack_duration_list = [0.0]
 
 
 	# sim_results = iter_run(attack_duration_list,

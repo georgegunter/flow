@@ -31,9 +31,12 @@ def get_vehicle_data(csv_path=None,
 	# vehicle_data = dict.fromkeys(ids)
 	
 	vehicle_data = {}
+    
+    # NOTE: I took out the collision check because it wasn't included in some data I'm using, but
+    # should be added back into relevant_fields again...
 	
 	relevant_fields = \
-		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious','is_collision']
+		['time','speed','headway','leader_id','follower_id','lane_number','edge_id','relative_position','distance','fuel','is_malicious']
 	
 	num_ids = len(ids)
 	curr_id_num = 1
@@ -64,7 +67,7 @@ def get_vehicle_data(csv_path=None,
 				vehicle_data[id_val][field] = np.array(data[field])
 				
 			vehicle_data[id_val]['is_acc'] = len(np.unique(vehicle_data[id_val]['is_malicious'])) > 1
-			vehicle_data[id_val]['has_collision'] = len(np.unique(vehicle_data[id_val]['is_collision'])) > 1
+# 			vehicle_data[id_val]['has_collision'] = len(np.unique(vehicle_data[id_val]['is_collision'])) > 1
             
 		curr_id_num += 1
 
