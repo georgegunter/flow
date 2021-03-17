@@ -21,22 +21,31 @@ attack_dot_size = 600
 
 pt.rcParams.update({'font.size': 30})
 
-pt.figure(figsize=[30,30])
-pt.subplot(3,1,1)
-pt.scatter(valid_sims[:,2],valid_sims[:,5],c='b',s=dot_size)
-pt.scatter(no_attack_sims[:,2],no_attack_sims[:,5],c='r',s=attack_dot_size)
+
+ave_speeds = valid_sims[:,5]
+speed_vars = valid_sims[:,6]
+ring_lengths = valid_sims[:,2]
+densities = np.divide(100,ring_lengths)*1000
+
+
+pt.figure(figsize=[30,20])
+pt.subplot(2,1,1)
+pt.scatter(densities,ave_speeds,c='b',s=dot_size)
+pt.scatter(np.divide(100,no_attack_sims[:,2])*1000,no_attack_sims[:,5],c='r',s=attack_dot_size)
 pt.title('Affects of attacks on the ring-road.')
 pt.legend(['Attacked scenarios','Benign Scenarios'])
 pt.ylabel('Average speed per vehicle [m/s]')
-pt.subplot(3,1,2)
-pt.scatter(valid_sims[:,2],np.sqrt(valid_sims[:,6]),c='b',s=dot_size)
-pt.scatter(no_attack_sims[:,2],np.sqrt(no_attack_sims[:,6]),c='r',s=attack_dot_size)
+pt.subplot(2,1,2)
+pt.scatter(densities,np.sqrt(speed_vars),c='b',s=dot_size)
+pt.scatter(np.divide(100,no_attack_sims[:,2])*1000,np.sqrt(no_attack_sims[:,6]),c='r',s=attack_dot_size)
 pt.ylabel('Average speed standard deviation [m/s]')
-pt.subplot(3,1,3)
-pt.scatter(valid_sims[:,2],valid_sims[:,7],c='b',s=dot_size)
-pt.scatter(no_attack_sims[:,2],no_attack_sims[:,7],c='r',s=attack_dot_size)
-pt.ylabel('Average Fuel Efficiency [km/l]')
-pt.xlabel('Ring Length [m]')
+pt.xlabel('Traffic Density [veh/km]')
+
+# pt.subplot(3,1,3)
+# pt.scatter(valid_sims[:,2],valid_sims[:,7],c='b',s=dot_size)
+# pt.scatter(no_attack_sims[:,2],no_attack_sims[:,7],c='r',s=attack_dot_size)
+# pt.ylabel('Average Fuel Efficiency [km/l]')
+# pt.xlabel('Ring Length [m]')
 #%% Normalize against the no-attack scenario:
 valid_sims = list(valid_sims)
 no_attack_sims = list(no_attack_sims)
@@ -71,24 +80,42 @@ no_attack_sims = np.array(no_attack_sims)
 
 dot_size = 200
 
-pt.figure(figsize=[30,30])
+
+pt.figure(figsize=[30,25])
 pt.subplot(3,1,1)
-pt.scatter(valid_sims[:,2],speed_diffs_normalized,c='b',s=dot_size)
-pt.plot([np.min(valid_sims[:,2]),np.max(valid_sims[:,2])],[0,0],'k--')
-pt.xlim([np.min(valid_sims[:,2])-20,np.max(valid_sims[:,2])+20])
+pt.scatter(densities,speed_diffs_normalized,c='b',s=dot_size)
+pt.plot([np.min(densities),np.max(densities)],[0,0],'k--')
+
 pt.title('Relative impacts from attacks compared to benign on the ring-road.')
 pt.ylabel('Change in average speed [m/s]')
 pt.subplot(3,1,2)
-pt.scatter(valid_sims[:,2],speed_std_diffs_normalized,c='b',s=dot_size)
-pt.plot([np.min(valid_sims[:,2]),np.max(valid_sims[:,2])],[0,0],'k--')
-pt.xlim([np.min(valid_sims[:,2])-20,np.max(valid_sims[:,2])+20])
+pt.scatter(densities,speed_std_diffs_normalized,c='b',s=dot_size)
+pt.plot([np.min(densities),np.max(densities)],[0,0],'k--')
+
 pt.ylabel('Change in speed std [m/s]')
-pt.subplot(3,1,3)
-pt.scatter(valid_sims[:,2],fuel_eff_diffs_normalized,c='b',s=dot_size)
-pt.plot([np.min(valid_sims[:,2]),np.max(valid_sims[:,2])],[0,0],'k--')
-pt.xlim([np.min(valid_sims[:,2])-20,np.max(valid_sims[:,2])+20])
-pt.ylabel('Change in Fuel Efficiency [km/l]')
-pt.xlabel('Ring Length [m]') 
+pt.xlabel('Traffic Density [veh/km]')
+
+
+
+
+# pt.figure(figsize=[30,30])
+# pt.subplot(3,1,1)
+# pt.scatter(valid_sims[:,2],speed_diffs_normalized,c='b',s=dot_size)
+# pt.plot([np.min(valid_sims[:,2]),np.max(valid_sims[:,2])],[0,0],'k--')
+# pt.xlim([np.min(valid_sims[:,2])-20,np.max(valid_sims[:,2])+20])
+# pt.title('Relative impacts from attacks compared to benign on the ring-road.')
+# pt.ylabel('Change in average speed [m/s]')
+# pt.subplot(3,1,2)
+# pt.scatter(valid_sims[:,2],speed_std_diffs_normalized,c='b',s=dot_size)
+# pt.plot([np.min(valid_sims[:,2]),np.max(valid_sims[:,2])],[0,0],'k--')
+# pt.xlim([np.min(valid_sims[:,2])-20,np.max(valid_sims[:,2])+20])
+# pt.ylabel('Change in speed std [m/s]')
+# pt.subplot(3,1,3)
+# pt.scatter(valid_sims[:,2],fuel_eff_diffs_normalized,c='b',s=dot_size)
+# pt.plot([np.min(valid_sims[:,2]),np.max(valid_sims[:,2])],[0,0],'k--')
+# pt.xlim([np.min(valid_sims[:,2])-20,np.max(valid_sims[:,2])+20])
+# pt.ylabel('Change in Fuel Efficiency [km/l]')
+# pt.xlabel('Ring Length [m]') 
     
 #%% Make dict of results
 

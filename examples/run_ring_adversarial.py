@@ -101,7 +101,7 @@ def get_flow_params(attack_duration,
 
 	vehicles.add(
 		veh_id="acc_benign",
-		color="blue",
+		# color="blue",
 		car_following_params=SumoCarFollowingParams(speed_mode=12,length=vehicle_length),
 		acceleration_controller=benign_ACC_controller,
 		routing_controller=(ContinuousRouter, {}),
@@ -188,7 +188,7 @@ def rename_file(csv_path,emission_path,attack_duration,attack_magnitude,acc_pene
 
 	return file_name_with_version
 
-def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,ring_length,emission_path,get_results=True,delete_file=True,want_render=False):
+def run_attack_sim(attack_duration,attack_magnitude,acc_penetration,attack_penetration,ring_length,emission_path,get_results=True,delete_file=True,want_render=True):
 
 	flow_params = get_flow_params(attack_duration,attack_magnitude,acc_penetration,ring_length,emission_path,attack_penetration,want_render=want_render)
 
@@ -259,15 +259,14 @@ def iter_run(attack_duration_list,
 	ring_length_list,
 	attack_penetration_list,
 	emission_path,
-	batch_runs=8,
-	get_results=True,
-	delete_file=True,
+	get_results=False,
+	delete_file=False,
 	):
 
 	sim_results_list = []
 	sim_result_ids = [] #For when parallel with ray
 
-	# start_time = time.time()
+	start_time = time.time()
 
 	for ring_length in ring_length_list:
 		for attack_duration in attack_duration_list:
@@ -283,20 +282,22 @@ def iter_run(attack_duration_list,
 									attack_penetration=attack_penetration,
 									ring_length=ring_length,
 									emission_path=emission_path,
-									get_results=True,
-									delete_file=True))
+									get_results=get_results,
+									delete_file=delete_file))
 						except:
 							print('Simulation failed...')
 
-	# try:
-	# 	end_time = time.time()
-	# 	compute_time = end_time - start_time
+	sim_results_list = ray.get(sim_result_ids)
 
-	# 	print('Simulations finished.')
-	# 	print('Total computation time: '+str(compute_time))
-	# 	print('Time per simulation: '+str(compute_time/len(sim_results_list)))
-	# except:
-	# 	print('simulations Finished.')
+	try:
+		end_time = time.time()
+		compute_time = end_time - start_time
+
+		print('Simulations finished.')
+		print('Total computation time: '+str(compute_time))
+		print('Time per simulation: '+str(compute_time/len(sim_results_list)))
+	except:
+		print('simulations Finished.')
 
 	print('Simulations Finished')
 
@@ -304,7 +305,7 @@ def iter_run(attack_duration_list,
 
 
 if __name__ == "__main__":
-	emission_path = 'i24_adversarial_sims/'
+	emission_path = 'ringroad_adversarial_sims/'
 	# acc_penetration = 0.2
 	# attack_penetration = 0.2
 	# attack_magnitude = -1.0
@@ -322,8 +323,9 @@ if __name__ == "__main__":
 
 	# print('Sim time: '+str(end_time-start_time))
 
-	# ring_length_list = list(np.linspace(25,60,36)*100+400)
-	ring_length_list = list(np.linspace(10,20,4)*100+400)
+	# ring_length_list = list(np.linspace(20,50,10)*100+400)
+	# ring_length_list = list(np.linspace(10,20,4)*100+400)
+	ring_length_list = [2500]
 	acc_penetration_list = [0.2]
 	# attack_penetration_list = [0.001]
 	attack_penetration_list = [0.2]
@@ -350,8 +352,6 @@ if __name__ == "__main__":
 	sim_results_list = []
 	sim_result_ids = [] #For when parallel with ray
 
-	start_time = time.time()
-
 	for ring_length in ring_length_list:
 		for attack_duration in attack_duration_list:
 			for attack_magnitude in attack_magnitude_list:
@@ -365,11 +365,14 @@ if __name__ == "__main__":
 								attack_penetration=attack_penetration,
 								ring_length=ring_length,
 								emission_path=emission_path,
-								get_results=True,
-								delete_file=True))
+								get_results=False,
+								delete_file=False))
+
+
 
 	sim_results_param_sweep = ray.get(sim_result_ids)
 
+	print('Finished with simulations.')
 
 	# sim_results_param_sweep = iter_run(attack_duration_list,
 	# 	attack_magnitude_list,
@@ -379,9 +382,9 @@ if __name__ == "__main__":
 	# 	emission_path,
 	# 	batch_runs=1)
 
-	print(sim_results_param_sweep)
+	# print(sim_results_param_sweep)
 
-	np.savetxt('ring_sim_results_param_sweep.csv',sim_results_param_sweep)
+	# np.savetxt('ring_sim_results_param_sweep.csv',sim_results_param_sweep)
 
 
 
