@@ -32,7 +32,7 @@ def get_vehicle_data(csv_path=None,
 	
 	vehicle_data = {}
     
-    # NOTE: I took out the collision check because it wasn't included in some data I'm using, but
+    # NOTE: I took out the collision check because it wasn't included in some 
     # should be added back into relevant_fields again...
 	
 	relevant_fields = \

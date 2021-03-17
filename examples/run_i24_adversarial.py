@@ -133,7 +133,7 @@ def get_flow_params(attack_duration,
 	vehicles.add(
 		"benign_ACC",
 		num_vehicles=0,
-		color="blue",
+		# color="blue",
 		lane_change_params=SumoLaneChangeParams(
 			lane_change_mode=0,
 		),
