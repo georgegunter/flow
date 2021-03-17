@@ -2,18 +2,19 @@ import numpy as np
 import matplotlib.pyplot as pt
 import pandas as pd
 import time
+import os
 
 from load_sim_results import get_vehicle_data
 from load_sim_results import find_time_integral
 #%% Load data:
 
-inflow_rate = '2400'
+inflow_rate = '1200'
 
 start_time = time.time()
 
-data_frame_no_attack = pd.read_csv('/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/i24_adversarial_sims/Dur_10.0_Mag_-1.0_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.001_ver_1.csv')
-data_frame_medium_attack = pd.read_csv('/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/i24_adversarial_sims/Dur_5.0_Mag_-0.25_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.2_ver_1.csv')
-data_frame_full_attack = pd.read_csv('/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/i24_adversarial_sims/Dur_10.0_Mag_-1.0_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.2_ver_1.csv')
+data_frame_no_attack = pd.read_csv('i24_adversarial_sims/Dur_10.0_Mag_-1.0_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.001_ver_1.csv')
+data_frame_medium_attack = pd.read_csv('i24_adversarial_sims/Dur_5.0_Mag_-0.25_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.2_ver_1.csv')
+data_frame_full_attack = pd.read_csv('i24_adversarial_sims/Dur_10.0_Mag_-1.0_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.2_ver_1.csv')
 #%%
 start_time = time.time()
 vehicle_data_no_attack = get_vehicle_data(data_frame=data_frame_no_attack,print_progress=True)
