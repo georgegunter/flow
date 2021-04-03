@@ -15,6 +15,10 @@ start_time = time.time()
 data_frame_no_attack = pd.read_csv('i24_adversarial_sims/Dur_10.0_Mag_-1.0_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.001_ver_1.csv')
 data_frame_medium_attack = pd.read_csv('i24_adversarial_sims/Dur_5.0_Mag_-0.25_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.2_ver_1.csv')
 data_frame_full_attack = pd.read_csv('i24_adversarial_sims/Dur_10.0_Mag_-1.0_Inflow_'+inflow_rate+'_ACCPenetration_0.2_AttackPenetration_0.2_ver_1.csv')
+
+
+
+
 #%%
 start_time = time.time()
 vehicle_data_no_attack = get_vehicle_data(data_frame=data_frame_no_attack,print_progress=True)
@@ -104,6 +108,9 @@ pt.hist(std_speeds_no_attacks,100,density=True,histtype='step',color='green',Lin
 pt.hist(std_speeds_medium_attacks,100,density=True,histtype='step',color='blue',LineWidth=5)
 pt.hist(std_speeds_full_attacks,100,density=True,histtype='step',color='red',LineWidth=5)
 pt.xlabel('Speed Standard Deviation [m/s]')
+
+#%% Just the first case :
+    
 
 
 

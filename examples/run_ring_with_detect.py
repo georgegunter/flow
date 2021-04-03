@@ -21,6 +21,8 @@ import load_sim_results as load_sim
 from load_sim_results import get_vehicle_data
 from load_sim_results import get_sim_results
 
+#%%
+
 def train_ae_model(sample_data):
 
 	num_features = len(sample_data[0,:])
