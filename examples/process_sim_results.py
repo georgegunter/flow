@@ -1,54 +1,38 @@
 import numpy as np
-import matplotlib.pyplot
+import matplotlib.pyplot as pt
+import os
 
+def get_all_sim_results(csv_repo_path='/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/i24_adversarial_sims/results_csv_repo'):
+    files = os.listdir(csv_repo_path)
+    unique_file_names = []
 
-def process_sim_result(sim_results):
-	#This is hardcoded with assumptions about the structure
-	#of what's in each column. If that changes, need to change
-	#here too.
+    for file in files:
+        if(file[-3:] == 'csv'):
+            i=0
+            while((file[i:i+2] != '_v') and (i < len(file)-1)): i+=1
+            file_name = file[:i]
+            if(file_name not in unique_file_names): unique_file_names.append(file_name)
 
-	attack_durations = np.unique(sim_results[:,0])
-	attack_magnitudes = np.unique(sim_results[:,1])
+    sim_results_dict = dict.fromkeys(unique_file_names)
+    for file_name in unique_file_names:
+        sim_results_dict[file_name] = []
 
-	attack_durations_list = list(attack_durations)
-	attack_magnitudes_list = list(attack_durations)
+    for file in files:
+        if(file[-3:] == 'csv'):
+            i=0
+            while((file[i:i+2] != '_v') and (i < len(file)-1)): i+=1
+            file_name = file[:i]
 
-	num_results = len(sim_results[:,0])
+            csv_file_path = os.path.join(csv_repo_path,file)
+            sim_results = np.loadtxt(csv_file_path)
 
-	fuel_rates = np.zeros((len(attack_durations),len(attack_magnitudes)))
+            sim_results_dict[file_name].append(sim_results)
 
-	travel_times = np.zeros((len(attack_durations),len(attack_magnitudes)))
+    for file in unique_file_names:
+        sim_results_dict[file_name] = np.array(sim_results_dict[file_name])
 
-	speed_vars = np.zeros((len(attack_durations),len(attack_magnitudes)))
+    return sim_results_dict
 
-	num_vehicles = np.zeros((len(attack_durations),len(attack_magnitudes)))
-
-	for n in range(num_results):
-		attack_dur = sim_results[n,0]
-		attack_mag = sim_results[n,1]
-		attack_dur_index = attack_durations_list.index(attack_dur)
-		attack_mag_index = attack_magnitudes_list.index(attack_mag)
-
-		fuel_rate = sim_results[n,6]/sim_results[n,5]
-		travel_time = sim_results[n,7]
-		speed_var = sim_results[n,8]
-		num_vehicle = sim_results[n,9]
-
-		fuel_rates[attack_dur_index,attack_mag_index] = fuel_rate
-
-		travel_times[attack_dur_index,attack_mag_index] = travel_time
-
-		speed_vars[attack_dur_index,attack_mag_index] = speed_var
-
-		num_vehicles[attack_dur_index,attack_mag_index] = num_vehicle
-
-		return [attack_durations,attack_magnitudes,fuel_rates,travel_times,speed_vars,num_vehicles]
-
-
-
-
-
-
-
+def plot_all_sim_res(sim_results_dict,file_name):
 
 

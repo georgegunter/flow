@@ -9,13 +9,14 @@ class ACC_Switched_Controller_Attacked(BaseController):
     def __init__(self,
                  veh_id,
                  car_following_params,
-                 k_1=0.1,
-                 k_2=0.2,
+                 k_1=1.0,
+                 k_2=1.0,
                  V_m=30,
                  h=1.2,
                  d_min=8.0,
                  SS_Threshold_min=15,
                  SS_Threshold_range=20,
+                 want_multiple_attacks=False,
                  Total_Attack_Duration = 3.0,
                  attack_decel_rate = -.8,
                  display_attack_info = False,
@@ -33,14 +34,16 @@ class ACC_Switched_Controller_Attacked(BaseController):
             noise=noise)
 
         self.veh_id = veh_id
-        self.k_1 = 1.0
-        self.k_2 = 1.0
+        self.k_1 = k_1
+        self.k_2 = k_2
         self.k_3 = 0.5
         self.d_min = d_min
         self.V_m = V_m
         self.h = h
         self.isUnderAttack = False
         self.numSteps_Steady_State = 0
+        self.want_multiple_attacks = want_multiple_attacks
+        self.initial_attack_occurred = False
 
         self.SS_Threshold = SS_Threshold_min + np.random.rand()*SS_Threshold_range #number seconds at SS to initiate attack
 
@@ -72,15 +75,14 @@ class ACC_Switched_Controller_Attacked(BaseController):
             self.Reset_After_Attack(env)
 
     def Reset_After_Attack(self,env):
+        self.initial_attack_occurred = True
         self.isUnderAttack = False
         self.numSteps_Steady_State = 0
         self.Curr_Attack_Duration = 0.0
         pos  = env.k.vehicle.get_position(self.veh_id)
         lane = env.k.vehicle.get_lane(self.veh_id)
         if(self.display_attack_info):
-            print('Attacker Finished: '+str(self.veh_id))
-            print('Attack magnitude: '+str(self.attack_decel_rate))
-            print('Attack duration: '+str(self.Total_Attack_Duration))
+            print('Attack info:'+str(self.veh_id)+', '+str(self.attack_decel_rate)+', '+str(self.Total_Attack_Duration)+', '+str(env.step_counter*env.sim_step))
 
     def Check_For_Steady_State(self):
         self.numSteps_Steady_State += 1
@@ -130,44 +132,56 @@ class ACC_Switched_Controller_Attacked(BaseController):
 
         step_size = env.sim_step
         SS_length = step_size * self.numSteps_Steady_State
-        if(SS_length >= self.SS_Threshold):
-            if(not self.isUnderAttack):
-                if(self.display_attack_info):
-                    print('Beginning attack: '+self.veh_id+' Time: '+str(env.step_counter*env.sim_step))
-            self.isUnderAttack = True
+
+        if(self.want_multiple_attacks):
+            #If want multiple starts then let the time for attacking recycle:
+            if(SS_length >= self.SS_Threshold):
+                if(not self.isUnderAttack):
+                    if(self.display_attack_info):
+                        print('Beginning attack: '+self.veh_id+' Time: '+str(env.step_counter*env.sim_step))
+                self.isUnderAttack = True
+            else:
+                self.isUnderAttack = False
+
         else:
-            self.isUnderAttack = False
+            #If I don't want multiple attacks then only wait until initial wait period is up:
+            if(not self.initial_attack_occurred):
+                #Haven't attacked yet:
+                if(SS_length >= self.SS_Threshold):
+                    if(not self.isUnderAttack):
+                        if(self.display_attack_info):
+                            print('Beginning attack: '+self.veh_id+' Time: '+str(env.step_counter*env.sim_step))
+                    self.isUnderAttack = True
+                else:
+                    self.isUnderAttack = False
+
+            else:
+                self.isUnderAttack = False
 
     def get_accel(self, env):
         """See parent class."""
 
-        is_passed_warmup = env.step_counter > self.warmup_steps
+        is_passed_warmup = env.step_counter > self.warmup_steps #Has the simulation progressed far enough
 
-        perform_attack = self.isUnderAttack and is_passed_warmup
+        perform_attack = self.isUnderAttack and is_passed_warmup #Should perform the attack if waited long enough and the random wait is over
 
         if(perform_attack):
             #Attack under way:
-            self.Attack_accel(env)
-            # if(self.display_attack_info):
-            #     print('Attacker: '+self.veh_id+' decel: '+str(self.a)+' speed: '+str(env.k.vehicle.get_speed(self.veh_id)))
-            # Specify that an attack is happening:
+            self.Attack_accel(env) #Sets the vehicles acceleration, which is self.a
             env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
         else:   
             # No attack currently happening:
-            self.normal_ACC_accel(env)
-            # Check to see if driving near steady-state:
-            if(is_passed_warmup):
-                self.Check_For_Steady_State()
+            self.normal_ACC_accel(env) #Sets vehicles acceleration in self.a
             # Check to see if need to initiate attack:
             self.Check_Start_Attack(env)
             # Specificy that no attack is being executed:
             env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
 
 
-        return self.a
+        return self.a #return the acceleration that is set above.
 
     def get_custom_accel(self, this_vel, lead_vel, h):
         """See parent class."""
-        # Not implemented ...
+        # Not implemented...
         return self.a
 
