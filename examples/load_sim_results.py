@@ -7,9 +7,9 @@ import os
 import csv
 
 #%%
-import ray 
-if(not ray.is_initialized()):
-	ray.init(ignore_reinit_error=True)
+# import ray 
+# if(not ray.is_initialized()):
+# 	ray.init(ignore_reinit_error=True)
 
 #%% useful functions for processing flow data:
 
@@ -388,9 +388,9 @@ def get_sim_results(csv_path,file_name,print_progress):
 	return [np.mean(mean_speeds),np.mean(var_speeds)]
 		
 
-@ray.remote
-def get_sim_results_ray_helper(csv_path,file_name,print_progress):
-	return get_sim_results(csv_path,file_name,print_progress)
+# @ray.remote
+# def get_sim_results_ray_helper(csv_path,file_name,print_progress):
+# 	return get_sim_results(csv_path,file_name,print_progress)
 
 
 def get_sim_results_list(csv_path_list,file_name_list,print_progress=True):
@@ -608,7 +608,8 @@ def get_sim_data_dict(csv_path):
 					# sys.stdout.write('\r'+'Veh id: '+str(veh_id_nums) + ' row: ' +str(row_num))
 					
 					#Store old data:
-					sim_dict[curr_veh_id] = curr_veh_data
+					if(len(curr_veh_data)>0):
+						sim_dict[curr_veh_id] = curr_veh_data
 
 					#Rest where data is being stashed:
 					curr_veh_data = []
@@ -663,8 +664,8 @@ def write_results_platoon_to_csv(sim_results,file_name,csv_repo_path='/Users/van
 
 	np.savetxt(file_path,x)
 
-def get_all_params_in_csv_repo(csv_repo_path='/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/i24_adversarial_sims/results_csv_repo'):
-	files = os.listdir(csv_repo_path)
+def get_all_params(emission_path):
+	files = os.listdir(emission_path)
 	unique_params = []
 
 
