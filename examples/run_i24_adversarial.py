@@ -1,18 +1,20 @@
+#Misc:
 import os
 import numpy as np
 import time
 
+#Human driver model:
 from flow.controllers.car_following_models import IDMController
 
 #Specific to using to control adverarial vehicles:
-from flow.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked
+from flow.controllers.car_following_adversarial import ACC_Switched_Controller_Attacked,ACC_Switched_Controller_Attacked_Single
+from flow.controllers.car_following_adversarial import ACC_Benign
+
+# For routing and lane-changing:
 from flow.controllers.lane_change_controllers import StaticLaneChanger
 from flow.controllers.routing_controllers import i24_adversarial_router
 from flow.controllers.routing_controllers import I24Router
 
-# from flow.controllers.lane_change_controllers import AILaneChangeController
-# from flow.controllers.lane_change_controllers import I24_routing_LC_controller
-# from flow.controllers.routing_controllers import I210Router
 
 # For flow:
 from flow.core.params import SumoParams
@@ -22,9 +24,7 @@ from flow.core.params import SumoLaneChangeParams
 from flow.core.params import VehicleParams
 from flow.core.params import InitialConfig
 from flow.core.params import InFlows
-
 from flow.core.params import SumoCarFollowingParams
-
 import flow.config as config
 from flow.envs import TestEnv
 
@@ -35,16 +35,13 @@ from flow.networks.I24_Subnetwork_test_merge import EDGES_DISTRIBUTION
 #For running a simulation:
 from flow.core.experiment import Experiment
 
-
 # For procesing results:
 from load_sim_results import get_sim_results_csv
 from load_sim_results import write_results_to_csv
 from load_sim_results import get_all_params
 
-# Ray:
+# Ray for parrallelization:
 import ray
-if(not ray.is_initialized()):
-	ray.init(num_cpus=5,ignore_reinit_error=True)
 
 def get_flow_params(attack_duration,
 	attack_magnitude,
@@ -104,17 +101,17 @@ def get_flow_params(attack_duration,
 		h = ACC_comp_params[2]
 		d_min = ACC_comp_params[3]
 
-		adversary_accel_controller = (ACC_Switched_Controller_Attacked,{
+		adversary_accel_controller = (ACC_Switched_Controller_Attacked_Single,{
 			'k_1':k_1,
 			'k_2':k_2,
 			'h':h,
 			'd_min':d_min,
-			'warmup_steps':horizon,
+			'warmup_steps':WARMUP_STEPS,
 			'Total_Attack_Duration':attack_magnitude,
 			'attack_decel_rate':attack_magnitude,
-			'display_attack_info':False})
+			'display_attack_info':display_attack_info})
 	else:
-		adversary_accel_controller = (ACC_Switched_Controller_Attacked,{
+		adversary_accel_controller = (ACC_Switched_Controller_Attacked_Single,{
 			'warmup_steps':WARMUP_STEPS,
 			'Total_Attack_Duration':attack_duration,
 			'attack_decel_rate':attack_magnitude,
@@ -130,22 +127,14 @@ def get_flow_params(attack_duration,
 		h = ACC_benign_params[2]
 		d_min = ACC_benign_params[3]
 
-		benign_ACC_controller = (ACC_Switched_Controller_Attacked,{
+		benign_ACC_controller = (ACC_Benign,{
 			'k_1':k_1,
 			'k_2':k_2,
 			'h':h,
-			'd_min':d_min,
-			'warmup_steps':horizon,
-			'Total_Attack_Duration':0,
-			'attack_decel_rate':0,
-			'display_attack_info':display_attack_info})
+			'd_min':d_min})
 
 	else:
-		benign_ACC_controller = (ACC_Switched_Controller_Attacked,{
-			'warmup_steps':horizon,
-			'Total_Attack_Duration':0,
-			'attack_decel_rate':0,
-			'display_attack_info':display_attack_info})
+		benign_ACC_controller = (ACC_Benign,{})
 
 	##################################
 	#DRIVER TYPES AND INFLOWS:
@@ -155,7 +144,7 @@ def get_flow_params(attack_duration,
 
 	# Attack ACC params and inflows:
 	vehicles.add(
-		"attacker_ACC",
+		veh_id="attacker_ACC",
 		num_vehicles=0,
 		color="red",
 		lane_change_params=SumoLaneChangeParams(
@@ -171,7 +160,7 @@ def get_flow_params(attack_duration,
 	)
 
 	vehicles.add(
-		"benign_ACC",
+		veh_id="benign_ACC",
 		num_vehicles=0,
 		color="blue",
 		lane_change_params=SumoLaneChangeParams(
@@ -209,7 +198,7 @@ def get_flow_params(attack_duration,
 
 	#Human params and inflows (main line and on-ramp)
 	vehicles.add(
-		"human_main",
+		veh_id="human_main",
 		num_vehicles=0,
 		lane_change_params=SumoLaneChangeParams(
 			lane_change_mode=597,
@@ -224,7 +213,7 @@ def get_flow_params(attack_duration,
 	)
 
 	vehicles.add(
-		"human_on_ramp",
+		veh_id="human_on_ramp",
 		num_vehicles=0,
 		# color="red",
 		lane_change_params=SumoLaneChangeParams(
@@ -620,148 +609,367 @@ def iter_run(attack_duration_list,
 										
 if __name__ == "__main__":
 
-	# emission_path = 'i24_adversarial_sims/'
-	emission_path = '/Volumes/My Passport for Mac/parameter_sweep'
+		#Allows to quickly swap between a few different simulation scenarios:
+	want_run_single_sim = False
+	want_attack_sweep = False
+	want_param_sweep_multi_run = False
+	want_param_sweep_single = False
+	want_param_sweep_single_benign = True
 
-	total_run_time = 0
-	num_runs = 10
-	params_run = get_all_params(emission_path)
+	if(want_attack_sweep):
 
-	inflow_vals = [1200,1800,2400]
-	acc_penetration_vals = [0.1,0.2,0.3]
-	attack_penetration_vals = [0.05,0.1]
-	attack_vals = [[-0.25,5.0],[-1.0,10.0]]
+		ray.init(num_cpus=5)
 
-	print('Beginning simulations...')
+		# For doing an sweep just on attack parameters:
+		emission_path = '/Volumes/My Passport for Mac/attack_sweep'
 
-	for acc_penetration in acc_penetration_vals:
-		for attack_penetration in attack_penetration_vals:
-			for inflow in inflow_vals:
-				for attack in attack_vals:
-					
-					attack_magnitude = attack[0]
-					attack_duration = attack[1]
+		num_samples = 10
 
-					params = [attack_duration,attack_magnitude,inflow,acc_penetration,attack_penetration]
+		attack_durations = np.linspace(0.1,15.0,num_samples)
+		attack_magnitudes = np.linspace(-0.1,-1.5,num_samples)
 
-					if(params not in params_run):
-						print('Params to run:')
-						print(params)
+		inflow = 2400
+		attack_penetration = 0.05
+		acc_penetration = 0.30
 
-						try:
-							inflow_list = []
-							acc_penetration_list = []
-							attack_penetration_list = []
-							attack_magnitude_list = []
-							attack_duration_list = []
+		inflow_list_all = []
+		acc_penetration_list_all = []
+		attack_penetration_list_all = []
+		attack_magnitude_list_all = []
+		attack_duration_list_all = []
 
-							for i in range(num_runs):
-								inflow_list.append(inflow)
-								acc_penetration_list.append(acc_penetration)
-								attack_penetration_list.append(attack_penetration)
-								attack_magnitude_list.append(attack_magnitude)
-								attack_duration_list.append(attack_duration)
+		for i in range(num_samples):
+			for j in range(num_samples):
+				attack_magnitude = attack_magnitudes[i]
+				attack_duration = attack_durations[j]
 
+				inflow_list_all.append(inflow)
+				acc_penetration_list_all.append(acc_penetration)
+				attack_penetration_list_all.append(attack_penetration)
+				attack_magnitude_list_all.append(attack_magnitude)
+				attack_duration_list_all.append(attack_duration)
 
-							begin_sim_time = time.time()
+		print('Beginning simulations...')
+		begin_run_time = time.time()
+		batch_size = 5 #Number of CPUs running
 
-							sim_info_list = run_sim_list(attack_duration_list,
-								attack_magnitude_list,
-								acc_penetration_list,
-								attack_penetration_list,
-								inflow_list,
-								emission_path,
-								want_render=False,
-								write_results=False,
-								delete_file=False)
+		num_sims = len(inflow_list_all)
 
-							end_sim_time = time.time()
-							sim_time = end_sim_time - begin_sim_time
-							total_run_time += sim_time
+		num_sims_complete = 0
 
-							print('Sim time: '+str(sim_time))
+		while(num_sims_complete < num_sims):
+			begin_time = time.time()
+			attack_duration_list = attack_duration_list_all[num_sims_complete:num_sims_complete+batch_size]
+			attack_magnitude_list = attack_magnitude_list_all[num_sims_complete:num_sims_complete+batch_size]
+			acc_penetration_list = acc_penetration_list_all[num_sims_complete:num_sims_complete+batch_size]
+			attack_penetration_list = attack_penetration_list_all[num_sims_complete:num_sims_complete+batch_size]
+			inflow_list = inflow_list_all[num_sims_complete:num_sims_complete+batch_size]
 
-							print('Simulations finished:')
-							print(sim_info_list)
-						except:
-							print('Issue writing files...')
+			sim_info_list = run_sim_list(attack_duration_list,
+										attack_magnitude_list,
+										acc_penetration_list,
+										attack_penetration_list,
+										inflow_list,
+										emission_path,
+										want_render=False,
+										write_results=False,
+										delete_file=False)
+			end_time = time.time()
+			print('Sim batch time: '+str(end_time-begin_time))
+			num_sims_complete += batch_size
+			print('Number of simulations completed: '+str(num_sims_complete))
 
-	print('All simulations finished.')
-	print('Total simulation time: '+str(total_run_time))
+		print('All simulations finished.')
+		print('Total simulation time: '+str(total_run_time))
 
+	if(want_param_sweep_multi_run):
 
+		ray.init(num_cpus=5,ignore_reinit_error=True)
 
+		# For doing a parameter sweep:
+		emission_path = '/Volumes/My Passport for Mac/parameter_sweep'
+		total_run_time = 0
+		params_run = get_all_params(emission_path)
 
-
-
-
-
-	# attack_magnitude = -1.0
-	# attack_duration = 10.0
-	# acc_penetration = 0.2
-	# attack_penetration = 0.1
-	# inflow = 2400.0
-
-	# run_attack_sim(attack_duration,
-	# 	attack_magnitude,
-	# 	acc_penetration,
-	# 	attack_penetration,
-	# 	inflow,
-	# 	emission_path,
-	# 	get_results=True,
-	# 	delete_file=False,
-	# 	want_render=True)
+		inflow_vals = [1200,1800,2400]
+		acc_penetration_vals = [0.1,0.2,0.3]
+		attack_penetration_vals = [0.05,0.1]
+		attack_vals = [[-0.25,5.0],[-1.0,10.0]]
 
 
 
-
-	# attack_duration = 0.0
-	# attack_magnitude = -.1
-	# inflow = 2400
-	# acc_penetration = 0.2
-	# attack_penetration = 0.001
-
-	# params = [attack_duration,attack_magnitude,inflow,acc_penetration,attack_penetration]
-
-	# if(params not in params_run):
-	# 	print('Params to run:')
-	# 	print(params)
-
-	# 	try:
-	# 		inflow_list = []
-	# 		acc_penetration_list = []
-	# 		attack_penetration_list = []
-	# 		attack_magnitude_list = []
-	# 		attack_duration_list = []
-
-	# 		for i in range(num_runs):
-	# 			inflow_list.append(inflow)
-	# 			acc_penetration_list.append(acc_penetration)
-	# 			attack_penetration_list.append(attack_penetration)
-	# 			attack_magnitude_list.append(attack_magnitude)
-	# 			attack_duration_list.append(attack_duration)
+		sim_list = []
 
 
-	# 		begin_sim_time = time.time()
+		# Just run for un-attacked sceanrios:
+		# acc_penetration_vals = [0.2]
+		# attack_penetration_vals = [0.001]
+		# attack_vals = [[0.0,0.0]]
 
-	# 		sim_info_list = run_sim_list(attack_duration_list,
-	# 			attack_magnitude_list,
-	# 			acc_penetration_list,
-	# 			attack_penetration_list,
-	# 			inflow_list,
-	# 			emission_path,
-	# 			want_render=False,
-	# 			write_results=False,
-	# 			delete_file=True)
+		print('Beginning parameter sweep simulations...')
+		num_simulations_run = 0
+		total_simulations = len(inflow_vals)*len(acc_penetration_vals)*len(attack_penetration_vals)*len(attack_vals)*num_runs
+		print('Simulations finished:' + str(num_simulations_run)+'/'+str(total_simulations))
 
-	# 		end_sim_time = time.time()
-	# 		sim_time = end_sim_time - begin_sim_time
-	# 		total_run_time += sim_time
-	# 	except:
-	# 		print('Issue with writing files...')
+		for acc_penetration in acc_penetration_vals:
+			for attack_penetration in attack_penetration_vals:
+				for inflow in inflow_vals:
+					for attack in attack_vals:
+						
+						attack_magnitude = attack[0]
+						attack_duration = attack[1]
+
+						params = [attack_duration,attack_magnitude,inflow,acc_penetration,attack_penetration]
+
+						if(params not in params_run):
+							print('Params to run:')
+							print(params)
+
+							try:
+								inflow_list = []
+								acc_penetration_list = []
+								attack_penetration_list = []
+								attack_magnitude_list = []
+								attack_duration_list = []
+
+								for i in range(num_runs):
+									inflow_list.append(inflow)
+									acc_penetration_list.append(acc_penetration)
+									attack_penetration_list.append(attack_penetration)
+									attack_magnitude_list.append(attack_magnitude)
+									attack_duration_list.append(attack_duration)
 
 
+								begin_sim_time = time.time()
 
+								sim_info_list = run_sim_list(attack_duration_list,
+									attack_magnitude_list,
+									acc_penetration_list,
+									attack_penetration_list,
+									inflow_list,
+									emission_path,
+									want_render=False,
+									write_results=False,
+									delete_file=False)
+
+								end_sim_time = time.time()
+								sim_time = end_sim_time - begin_sim_time
+								total_run_time += sim_time
+
+								print('Sim time: '+str(sim_time))
+								num_simulations_run += num_runs
+
+								print('Simulations finished:' + str(num_simulations_run)+'/'+str(total_simulations))
+								print(sim_info_list)
+							except:
+								print('Issue writing files...')
+
+		print('All simulations finished.')
+		print('Total simulation time: '+str(total_run_time))
+
+	if(want_param_sweep_single):
+
+		ray.init(num_cpus=5)
+
+		# For doing a parameter sweep:
+		emission_path = '/Volumes/My Passport for Mac/parameter_sweep'
+		total_run_time = 0
+		params_run = get_all_params(emission_path)
+
+		inflow_vals = [1200,1800,2400]
+		acc_penetration_vals = [0.1,0.2,0.3]
+		attack_penetration_vals = [0.025,0.05,0.1]
+		attack_vals = [[-0.25,5.0],[-.5,7.5],[-1.0,10.0]]
+
+		inflow_list = []
+		acc_penetration_list = []
+		attack_penetration_list = []
+		attack_magnitude_list = []
+		attack_duration_list = []
+
+
+		#make list of simulations to run:
+		for acc_penetration in acc_penetration_vals:
+			for attack_penetration in attack_penetration_vals:
+				for inflow in inflow_vals:
+					for attack in attack_vals:
+						attack_magnitude = attack[0]
+						attack_duration = attack[1]
+
+						params = [attack_duration,attack_magnitude,inflow,acc_penetration,attack_penetration]
+
+						if(params not in params_run):
+
+							inflow_list.append(inflow)
+							acc_penetration_list.append(acc_penetration)
+							attack_penetration_list.append(attack_penetration)
+							attack_magnitude_list.append(attack_magnitude)
+							attack_duration_list.append(attack_duration)
+
+		total_simulations = len(attack_duration_list)
+		batch_size = 5
+		num_simulations_run = 0
+
+		print('Parameters initialized, beginning simulations. Number simulations: '+str(total_simulations))
+
+		while(num_simulations_run < total_simulations):
+			try:
+				attack_duration_list_to_run = attack_duration_list[num_simulations_run:num_simulations_run+batch_size]
+				attack_magnitude_list_to_run = attack_magnitude_list[num_simulations_run:num_simulations_run+batch_size]
+				acc_penetration_list_to_run = acc_penetration_list[num_simulations_run:num_simulations_run+batch_size]
+				attack_penetration_list_to_run = attack_penetration_list[num_simulations_run:num_simulations_run+batch_size]
+				inflow_list_to_run = inflow_list[num_simulations_run:num_simulations_run+batch_size]
+
+				print('Parameter lists:')
+				print('Attack durations: '+str(attack_duration_list_to_run))
+				print('Attack magnitudes: '+str(attack_magnitude_list_to_run))
+				print('ACC penetration rate: '+str(acc_penetration_list_to_run))
+				print('Attack penetration rate: '+str(attack_penetration_list_to_run))
+				print('Inflow: '+str(inflow_list_to_run))
+
+
+				begin_sim_time = time.time()
+
+				sim_info_list = run_sim_list(attack_duration_list_to_run,
+					attack_magnitude_list_to_run,
+					acc_penetration_list_to_run,
+					attack_penetration_list_to_run,
+					inflow_list_to_run,
+					emission_path,
+					want_render=False,
+					write_results=False,
+					delete_file=False)
+
+				num_simulations_run += len(attack_duration_list_to_run)
+
+				end_sim_time = time.time()
+				sim_time = end_sim_time - begin_sim_time
+				total_run_time += sim_time
+
+				print('Sim time: '+str(sim_time))
+				num_simulations_run += num_runs
+				print('Simulations finished:' + str(num_simulations_run)+'/'+str(total_simulations))
+
+			except:
+				print('Issue writing files...')
+
+
+		print('All simulations finished.')
+		print('Total simulation time: '+str(total_run_time))
+
+	if(want_run_single_sim):
+		print('Running single simulation.')
+
+		emission_path = '/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/i24_adversarial_sims'
+		attack_magnitude = -1.0
+		attack_duration = 10.0
+		acc_penetration = 0.2
+		attack_penetration = 0.1
+		inflow = 1200.0
+
+		begin_time = time.time()
+		run_attack_sim(attack_duration,
+			attack_magnitude,
+			acc_penetration,
+			attack_penetration,
+			inflow,
+			emission_path,
+			get_results=False,
+			delete_file=False,
+			want_render=False)
+		end_time = time.time()
+
+		print('Simulation finished, time: '+str(end_time-begin_time))
+
+	if(want_param_sweep_single_benign):
+
+		ray.init(num_cpus=5)
+
+		# For doing a parameter sweep:
+		emission_path = '/Volumes/My Passport for Mac/benign_parameter_sweep'
+		total_run_time = 0
+		params_run = get_all_params(emission_path)
+
+		inflow_vals = [1200,1800,2400]
+		acc_penetration_vals = [0.1,0.2,0.3]
+		attack_penetration_vals = [0.001]
+		attack_vals = [[0.0,0.0]]
+
+		inflow_list = []
+		acc_penetration_list = []
+		attack_penetration_list = []
+		attack_magnitude_list = []
+		attack_duration_list = []
+
+
+		#make list of simulations to run:
+		for acc_penetration in acc_penetration_vals:
+			for attack_penetration in attack_penetration_vals:
+				for inflow in inflow_vals:
+					for attack in attack_vals:
+						attack_magnitude = attack[0]
+						attack_duration = attack[1]
+
+						params = [attack_duration,attack_magnitude,inflow,acc_penetration,attack_penetration]
+
+						if(params not in params_run):
+
+							inflow_list.append(inflow)
+							acc_penetration_list.append(acc_penetration)
+							attack_penetration_list.append(attack_penetration)
+							attack_magnitude_list.append(attack_magnitude)
+							attack_duration_list.append(attack_duration)
+
+		total_simulations = len(attack_duration_list)
+		batch_size = 5
+		num_simulations_run = 0
+
+		print('Parameters initialized, beginning simulations. Number simulations: '+str(total_simulations))
+
+		while(num_simulations_run < total_simulations):
+			try:
+				attack_duration_list_to_run = attack_duration_list[num_simulations_run:num_simulations_run+batch_size]
+				attack_magnitude_list_to_run = attack_magnitude_list[num_simulations_run:num_simulations_run+batch_size]
+				acc_penetration_list_to_run = acc_penetration_list[num_simulations_run:num_simulations_run+batch_size]
+				attack_penetration_list_to_run = attack_penetration_list[num_simulations_run:num_simulations_run+batch_size]
+				inflow_list_to_run = inflow_list[num_simulations_run:num_simulations_run+batch_size]
+
+				print('Parameter lists:')
+				print('Attack durations: '+str(attack_duration_list_to_run))
+				print('Attack magnitudes: '+str(attack_magnitude_list_to_run))
+				print('ACC penetration rate: '+str(acc_penetration_list_to_run))
+				print('Attack penetration rate: '+str(attack_penetration_list_to_run))
+				print('Inflow: '+str(inflow_list_to_run))
+
+
+				begin_sim_time = time.time()
+
+				sim_info_list = run_sim_list(attack_duration_list_to_run,
+					attack_magnitude_list_to_run,
+					acc_penetration_list_to_run,
+					attack_penetration_list_to_run,
+					inflow_list_to_run,
+					emission_path,
+					want_render=False,
+					write_results=False,
+					delete_file=False)
+
+				num_simulations_run += len(attack_duration_list_to_run)
+
+				end_sim_time = time.time()
+				sim_time = end_sim_time - begin_sim_time
+				total_run_time += sim_time
+
+				print('Sim time: '+str(sim_time))
+				num_simulations_run += num_runs
+				print('Simulations finished:' + str(num_simulations_run)+'/'+str(total_simulations))
+
+			except:
+				print('Issue writing files...')
+
+
+		print('All simulations finished.')
+		print('Total simulation time: '+str(total_run_time))
 
 
 
