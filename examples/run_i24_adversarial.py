@@ -60,7 +60,7 @@ def get_flow_params(attack_duration,
 
 	horizon = int(np.floor(SIM_LENGTH/sim_step)) #Number of simulation steps
 
-	WARMUP_STEPS = 1000 #Attack vehicles don't attack before this # of steps
+	WARMUP_STEPS = 4000 #Attack vehicles don't attack before this # of steps
 
 	BASELINE_INFLOW_PER_LANE = inflow #Per lane flow rate in veh/hr
 
@@ -194,7 +194,7 @@ def get_flow_params(attack_duration,
 				depart_speed=inflow_speed)
 
 	#handles when vehicles wait too long to try and merge and get stuck on merge:
-	human_routing_controller = (I24Router,{'position_to_switch_routes':15})
+	human_routing_controller = (I24Router,{'position_to_switch_routes':75})
 
 	#Human params and inflows (main line and on-ramp)
 	vehicles.add(
@@ -613,8 +613,8 @@ if __name__ == "__main__":
 	want_run_single_sim = False
 	want_attack_sweep = False
 	want_param_sweep_multi_run = False
-	want_param_sweep_single = False
-	want_param_sweep_single_benign = True
+	want_param_sweep_single = True
+	want_param_sweep_single_benign = False
 
 	if(want_attack_sweep):
 
@@ -776,9 +776,14 @@ if __name__ == "__main__":
 		total_run_time = 0
 		params_run = get_all_params(emission_path)
 
-		inflow_vals = [1200,1800,2400]
-		acc_penetration_vals = [0.1,0.2,0.3]
-		attack_penetration_vals = [0.025,0.05,0.1]
+		# inflow_vals = [1200,1800,2400]
+		# acc_penetration_vals = [0.1,0.2,0.3]
+		# attack_penetration_vals = [0.025,0.05,0.1]
+		# attack_vals = [[-0.25,5.0],[-.5,7.5],[-1.0,10.0]]
+
+		inflow_vals = [2400]
+		acc_penetration_vals = [0.3]
+		attack_penetration_vals = [0.025,0.05,0.75,0.1,0.125,0.15]
 		attack_vals = [[-0.25,5.0],[-.5,7.5],[-1.0,10.0]]
 
 		inflow_list = []
@@ -861,11 +866,11 @@ if __name__ == "__main__":
 		print('Running single simulation.')
 
 		emission_path = '/Users/vanderbilt/Desktop/Research_2020/Traffic_Attack/flow/examples/i24_adversarial_sims'
-		attack_magnitude = -1.0
-		attack_duration = 10.0
-		acc_penetration = 0.2
-		attack_penetration = 0.1
-		inflow = 1200.0
+		attack_magnitude = 0.0
+		attack_duration = 0.0
+		acc_penetration = 0.3
+		attack_penetration = 0.001
+		inflow = 2400.0
 
 		begin_time = time.time()
 		run_attack_sim(attack_duration,
@@ -876,7 +881,7 @@ if __name__ == "__main__":
 			emission_path,
 			get_results=False,
 			delete_file=False,
-			want_render=False)
+			want_render=True)
 		end_time = time.time()
 
 		print('Simulation finished, time: '+str(end_time-begin_time))

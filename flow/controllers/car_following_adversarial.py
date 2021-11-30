@@ -265,8 +265,8 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
                  V_m=30,
                  h=1.2,
                  d_min=8.0,
-                 SS_Threshold_min=30,
-                 SS_Threshold_range=60,
+                 distance_threshold_min = 900,
+                 distance_threshold_max = 2600,
                  Total_Attack_Duration = 3.0,
                  attack_decel_rate = -.8,
                  display_attack_info = False,
@@ -286,7 +286,7 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
         self.veh_id = veh_id
         self.k_1 = k_1
         self.k_2 = k_2
-        self.k_3 = 0.5
+        self.k_3 = 0.1
         self.d_min = d_min
         self.V_m = V_m
         self.h = h
@@ -294,8 +294,8 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
         # Hyper-params needed for tracking attack:
         self.isUnderAttack = False
         
-        self.attack_wait_period = SS_Threshold_min + np.random.rand()*SS_Threshold_range
-        self.attack_wait_steps_completed = 0
+        #Traverse a random distance before attacking, but not too close to edges of sim:
+        self.distance_to_attack = distance_threshold_min + np.random.rand()*(distance_threshold_max-distance_threshold_min)
 
         self.Total_Attack_Duration = Total_Attack_Duration #How long attack lasts for
         self.Curr_Attack_Duration = 0.0 
@@ -305,7 +305,7 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
         self.warmup_steps = warmup_steps
         self.attack_executed = False
 
-        print('Attack ACC spawned : '+veh_id+' warmup steps: '+str(self.warmup_steps)+', wait period: '+str(self.attack_wait_period))
+        print('Attack ACC spawned : '+veh_id+' warmup steps: '+str(self.warmup_steps)+' attack distance: '+str(self.distance_to_attack))
 
     def Attack_accel(self,env):
         lead_id = env.k.vehicle.get_leader(self.veh_id)
@@ -316,7 +316,15 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
         s = s - L
         u_ACC = self.accel_func(v, v_l, s) 
         # Select the minimum of the two, so that collisions are avoided
-        self.a = np.min([self.attack_decel_rate,u_ACC])
+        if(self.attack_decel_rate<u_ACC):
+            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
+        else:
+            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=0)
+
+        commanded_accel = np.min([self.attack_decel_rate,u_ACC])
+
+        self.a = commanded_accel
+        
 
     def Reset_After_Attack(self,env):
         self.isUnderAttack = False
@@ -360,8 +368,9 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
 
     def Check_Start_Attack(self,env):
 
-        is_passed_wait_period = self.attack_wait_steps_completed >= self.attack_wait_period
         is_passed_warmup = env.step_counter > self.warmup_steps
+        #Traveled a long enough distance:
+        is_passed_wait_period = env.k.vehicle.get_distance(self.veh_id) > self.distance_to_attack
 
         if(is_passed_wait_period and is_passed_warmup):
             self.isUnderAttack = True
@@ -380,7 +389,6 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
         if(performing_attack):
             #Attack under way:
             self.Attack_accel(env) #Sets the vehicles acceleration, which is self.a
-            env.k.vehicle.set_malicious(veh_id=self.veh_id,is_malicious=1)
             #Imcrement how long the attack has been happening for:
             self.Curr_Attack_Duration += env.sim_step
             #Attack is completed:
@@ -394,8 +402,6 @@ class ACC_Switched_Controller_Attacked_Single(BaseController):
             if(not self.attack_executed):
                 self.Check_Start_Attack(env)
                 is_passed_warmup = env.step_counter > self.warmup_steps
-                if(is_passed_warmup):
-                    self.attack_wait_steps_completed += env.sim_step
 
             #Normal acceleration:
             self.normal_ACC_accel(env) 
