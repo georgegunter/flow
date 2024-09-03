@@ -1,38 +1,4 @@
-"""Environments for networks with traffic lights.
-
-These environments are used to train traffic lights to regulate traffic flow
-through an n x m traffic light grid.
-"""
-
-import numpy as np
-import re
-
-from gym.spaces.box import Box
-from gym.spaces.discrete import Discrete
-from gym.spaces import Tuple
-
-from flow.core import rewards
-from flow.envs.base import Env
-
-ADDITIONAL_ENV_PARAMS = {
-    # minimum switch time for each traffic light (in seconds)
-    "switch_time": 2.0,
-    # whether the traffic lights should be actuated by sumo or RL
-    # options are "controlled" and "actuated"
-    "tl_type": "controlled",
-    # determines whether the action space is meant to be discrete or continuous
-    "discrete": False,
-}
-
-ADDITIONAL_PO_ENV_PARAMS = {
-    # num of vehicles the agent can observe on each incoming edge
-    "num_observed": 2,
-    # velocity to use in reward functions
-    "target_velocity": 30,
-}
-
-
-class TrafficLightGridEnv(Env):
+class TrafficLightGridEnv_GenericControl(Env):
     """Environment used to train traffic lights.
 
     Required from env_params:
@@ -100,7 +66,7 @@ class TrafficLightGridEnv(Env):
     currently_yellow : np array [num_traffic_lights]x1 np array
         Multi-dimensional array keeping track of whether or not each traffic
         light is currently yellow. 1 if yellow, 0 if not
-    min_switch_time : np array [num_traffic_lights]x1 np array
+    yelllow_duration : np array [num_traffic_lights]x1 np array
         The minimum time in timesteps that a light can be yellow. Serves
         as a lower bound
     discrete : bool
@@ -145,16 +111,35 @@ class TrafficLightGridEnv(Env):
         # value 0 indicates that the intersection is in a red-green state.
         self.currently_yellow = np.zeros((self.rows * self.cols, 1))
 
-        # when this hits min_switch_time we change from yellow to red
+        # when this hits yelllow_duration we change from yellow to red
         # the second column indicates the direction that is currently being
         # allowed to flow. 0 is flowing top to bottom, 1 is left to right
         # For third column, 0 signifies yellow and 1 green or red
-        self.min_switch_time = env_params.additional_params["switch_time"]
+        self.yelllow_duration = env_params.additional_params["switch_time"]
+
+
+
+
+
+        #######################################
+        ##### ADDED FOR SPILLOVER CONTROL #####
+        #######################################
+
+        # pass a custom controller through the env_params
+        self.controller = env_params.additional_params['controller']
+
+        self.observer = env_params.additional_params['observer']
+
+
+
+
+
+
 
         if self.tl_type != "actuated":
             for i in range(self.rows * self.cols):
                 self.k.traffic_light.set_state(
-                    node_id='center' + str(i), state="rGrG")
+                    node_id='center' + str(i), state="GrGr")
                 self.currently_yellow[i] = 0
 
         # # Additional Information for Plotting
@@ -169,6 +154,64 @@ class TrafficLightGridEnv(Env):
         # check whether the action space is meant to be discrete or continuous
         self.discrete = env_params.additional_params.get("discrete", False)
 
+    def get_state(self):
+        # Passes the kernel to a specified 
+        observations = self.observer(self.k)
+        return observations
+
+
+
+    def apply_controls(self, actions):
+        """See class definition."""
+        # check if the action space is discrete
+        if self.discrete:
+            # convert single value to list of 0's and 1's
+            mask = [int(x) for x in list('{0:0b}'.format(actions))]
+            mask = [0] * (self.num_traffic_lights - len(mask)) + mask
+        else:
+            # convert values less than 0 to zero and above 0 to 1. 0 indicates
+            # that should not switch the direction, and 1 indicates that switch
+            # should happen
+            mask = actions > 0.0
+
+        for i, action in enumerate(mask):
+            if self.currently_yellow[i] == 1:  # currently yellow
+                self.last_change[i] += self.sim_step
+                # Check if our timer has exceeded the yellow phase, meaning it
+                # should switch to red
+                if self.last_change[i] >= self.yelllow_duration:
+                    if self.direction[i] == 0:
+                        self.k.traffic_light.set_state(
+                            node_id='center{}'.format(i),
+                            state="GrGr")
+                    else:
+                        self.k.traffic_light.set_state(
+                            node_id='center{}'.format(i),
+                            state='rGrG')
+                    self.currently_yellow[i] = 0
+            else:
+                if action:
+                    if self.direction[i] == 0:
+                        self.k.traffic_light.set_state(
+                            node_id='center{}'.format(i),
+                            state='yryr')
+                    else:
+                        self.k.traffic_light.set_state(
+                            node_id='center{}'.format(i),
+                            state='ryry')
+                    self.last_change[i] = 0.0
+                    self.direction[i] = not self.direction[i]
+                    self.currently_yellow[i] = 1
+
+
+
+
+
+    # =======================================
+    # ============ RL FUNCTIONS: ============
+    # =======================================
+
+
     @property
     def action_space(self):
         """See class definition."""
@@ -180,6 +223,8 @@ class TrafficLightGridEnv(Env):
                 high=1,
                 shape=(self.num_traffic_lights,),
                 dtype=np.float32)
+
+
 
     @property
     def observation_space(self):
@@ -206,7 +251,10 @@ class TrafficLightGridEnv(Env):
             dtype=np.float32)
         return Tuple((speed, dist_to_intersec, edge_num, traffic_lights))
 
-    def get_state(self):
+
+
+
+    def _get_rl_state(self):
         """See class definition."""
         # compute the normalizers
         grid_array = self.net_params.additional_params["grid_array"]
@@ -237,6 +285,7 @@ class TrafficLightGridEnv(Env):
         ]
         return np.array(state)
 
+
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
         # check if the action space is discrete
@@ -255,7 +304,7 @@ class TrafficLightGridEnv(Env):
                 self.last_change[i] += self.sim_step
                 # Check if our timer has exceeded the yellow phase, meaning it
                 # should switch to red
-                if self.last_change[i] >= self.min_switch_time:
+                if self.last_change[i] >= self.yelllow_duration:
                     if self.direction[i] == 0:
                         self.k.traffic_light.set_state(
                             node_id='center{}'.format(i),
@@ -268,12 +317,10 @@ class TrafficLightGridEnv(Env):
             else:
                 if action:
                     if self.direction[i] == 0:
-                        print('Changing light at node '+str(i))
                         self.k.traffic_light.set_state(
                             node_id='center{}'.format(i),
                             state='yryr')
                     else:
-                        print('Changing light at node '+str(i))
                         self.k.traffic_light.set_state(
                             node_id='center{}'.format(i),
                             state='ryry')
@@ -281,7 +328,7 @@ class TrafficLightGridEnv(Env):
                     self.direction[i] = not self.direction[i]
                     self.currently_yellow[i] = 1
 
-    def compute_reward(self, rl_actions, **kwargs):
+    def _compute_rl_reward(self, rl_actions, **kwargs):
         """See class definition."""
         return - rewards.min_delay_unscaled(self) \
             - rewards.boolean_action_penalty(rl_actions >= 0.5, gain=1.0)
@@ -579,266 +626,3 @@ class TrafficLightGridEnv(Env):
         # intersection, potentially with ""-padding.
         pad_lst = [""] * (num_closest - len(veh_ids_ordered))
         return veh_ids_ordered[:num_closest] + (pad_lst if padding else [])
-
-
-class TrafficLightGridPOEnv(TrafficLightGridEnv):
-    """Environment used to train traffic lights.
-
-    Required from env_params:
-
-    * switch_time: minimum switch time for each traffic light (in seconds).
-      Earlier RL commands are ignored.
-    * num_observed: number of vehicles nearest each intersection that is
-      observed in the state space; defaults to 2
-
-    States
-        An observation is the number of observed vehicles in each intersection
-        closest to the traffic lights, a number uniquely identifying which
-        edge the vehicle is on, and the speed of the vehicle.
-
-    Actions
-        The action space consist of a list of float variables ranging from 0-1
-        specifying whether a traffic light is supposed to switch or not. The
-        actions are sent to the traffic light in the grid from left to right
-        and then top to bottom.
-
-    Rewards
-        The reward is the delay of each vehicle minus a penalty for switching
-        traffic lights
-
-    Termination
-        A rollout is terminated once the time horizon is reached.
-
-    Additional
-        Vehicles are rerouted to the start of their original routes once they
-        reach the end of the network in order to ensure a constant number of
-        vehicles.
-
-    """
-
-    def __init__(self, env_params, sim_params, network, simulator='traci'):
-        super().__init__(env_params, sim_params, network, simulator)
-
-        for p in ADDITIONAL_PO_ENV_PARAMS.keys():
-            if p not in env_params.additional_params:
-                raise KeyError(
-                    'Environment parameter "{}" not supplied'.format(p))
-
-        # number of vehicles nearest each intersection that is observed in the
-        # state space; defaults to 2
-        self.num_observed = env_params.additional_params.get("num_observed", 2)
-
-        # used during visualization
-        self.observed_ids = []
-
-    @property
-    def observation_space(self):
-        """State space that is partially observed.
-
-        Velocities, distance to intersections, edge number (for nearby
-        vehicles) from each direction, edge information, and traffic light
-        state.
-        """
-        tl_box = Box(
-            low=0.,
-            high=3,
-            shape=(3 * 4 * self.num_observed * self.num_traffic_lights +
-                   2 * len(self.k.network.get_edge_list()) +
-                   3 * self.num_traffic_lights,),
-            dtype=np.float32)
-        return tl_box
-
-    def get_state(self):
-        """See parent class.
-
-        Returns self.num_observed number of vehicles closest to each traffic
-        light and for each vehicle its velocity, distance to intersection,
-        edge_number traffic light state. This is partially observed
-        """
-        speeds = []
-        dist_to_intersec = []
-        edge_number = []
-        max_speed = max(
-            self.k.network.speed_limit(edge)
-            for edge in self.k.network.get_edge_list())
-        grid_array = self.net_params.additional_params["grid_array"]
-        max_dist = max(grid_array["short_length"], grid_array["long_length"],
-                       grid_array["inner_length"])
-        all_observed_ids = []
-
-        for _, edges in self.network.node_mapping:
-            for edge in edges:
-                observed_ids = \
-                    self.get_closest_to_intersection(edge, self.num_observed)
-                all_observed_ids += observed_ids
-
-                # check which edges we have so we can always pad in the right
-                # positions
-                speeds += [
-                    self.k.vehicle.get_speed(veh_id) / max_speed
-                    for veh_id in observed_ids
-                ]
-                dist_to_intersec += [
-                    (self.k.network.edge_length(
-                        self.k.vehicle.get_edge(veh_id)) -
-                        self.k.vehicle.get_position(veh_id)) / max_dist
-                    for veh_id in observed_ids
-                ]
-                edge_number += \
-                    [self._convert_edge(self.k.vehicle.get_edge(veh_id)) /
-                     (self.k.network.network.num_edges - 1)
-                     for veh_id in observed_ids]
-
-                if len(observed_ids) < self.num_observed:
-                    diff = self.num_observed - len(observed_ids)
-                    speeds += [0] * diff
-                    dist_to_intersec += [0] * diff
-                    edge_number += [0] * diff
-
-        # now add in the density and average velocity on the edges
-        density = []
-        velocity_avg = []
-        for edge in self.k.network.get_edge_list():
-            ids = self.k.vehicle.get_ids_by_edge(edge)
-            if len(ids) > 0:
-                vehicle_length = 5
-                density += [vehicle_length * len(ids) /
-                            self.k.network.edge_length(edge)]
-                velocity_avg += [np.mean(
-                    [self.k.vehicle.get_speed(veh_id) for veh_id in
-                     ids]) / max_speed]
-            else:
-                density += [0]
-                velocity_avg += [0]
-        self.observed_ids = all_observed_ids
-        return np.array(
-            np.concatenate([
-                speeds, dist_to_intersec, edge_number, density, velocity_avg,
-                self.last_change.flatten().tolist(),
-                self.direction.flatten().tolist(),
-                self.currently_yellow.flatten().tolist()
-            ]))
-
-    def compute_reward(self, rl_actions, **kwargs):
-        """See class definition."""
-        if self.env_params.evaluate:
-            return - rewards.min_delay_unscaled(self)
-        else:
-            return (- rewards.min_delay_unscaled(self) +
-                    rewards.penalize_standstill(self, gain=0.2))
-
-    def additional_command(self):
-        """See class definition."""
-        # specify observed vehicles
-        [self.k.vehicle.set_observed(veh_id) for veh_id in self.observed_ids]
-
-
-class TrafficLightGridBenchmarkEnv(TrafficLightGridPOEnv):
-    """Class used for the benchmarks in `Benchmarks for reinforcement learning inmixed-autonomy traffic`."""
-
-    def compute_reward(self, rl_actions, **kwargs):
-        """See class definition."""
-        if self.env_params.evaluate:
-            return - rewards.min_delay_unscaled(self)
-        else:
-            return rewards.desired_velocity(self)
-
-
-class TrafficLightGridTestEnv(TrafficLightGridEnv):
-    """
-    Class for use in testing.
-
-    This class overrides RL methods of traffic light grid so we can test
-    construction without needing to specify RL methods
-    """
-
-    def _apply_rl_actions(self, rl_actions):
-        """See class definition."""
-        pass
-
-    def compute_reward(self, rl_actions, **kwargs):
-        """No return, for testing purposes."""
-        return 0
-
-class TrafficLightGridGenericObserver(TrafficLightGridEnv):
-
-    def __init__(self, env_params, sim_params, network, simulator='traci'):
-        super().__init__(env_params, sim_params, network, simulator)
-
-        for p in ADDITIONAL_PO_ENV_PARAMS.keys():
-            if p not in env_params.additional_params:
-                raise KeyError(
-                    'Environment parameter "{}" not supplied'.format(p))
-
-
-        self.observer = env_params.additional_params['observer']
-        # self.observer_space = env_params.additional_params['observer_space']
-
-    def get_state(self):
-        state = self.observer(self)
-        return state
-
-
-    # @property
-    # def observation_space(self):
-    #     return self.observer_space
-
-    def _apply_rl_actions(self, rl_actions):
-        """See class definition."""
-        # check if the action space is discrete
-
-        if self.discrete:
-            # convert single value to list of 0's and 1's
-            rl_mask = [int(x) for x in list('{0:0b}'.format(rl_actions))]
-            rl_mask = [0] * (self.num_traffic_lights - len(rl_mask)) + rl_mask
-        else:
-            # convert values less than 0 to zero and above 0 to 1. 0 indicates
-            # that should not switch the direction, and 1 indicates that switch
-            # should happen
-            rl_mask = rl_actions > 0.0
-
-        for i, action in enumerate(rl_mask):
-            if self.currently_yellow[i] == 1:  # currently yellow
-                self.last_change[i] += self.sim_step
-                # Check if our timer has exceeded the yellow phase, meaning it
-                # should switch to red
-                if self.last_change[i] >= self.min_switch_time:
-
-                    if self.direction[i] == 0:
-                        self.k.traffic_light.set_state(
-                            node_id='center{}'.format(i),
-                            state="GrGr")
-                        
-                    else:
-                        self.k.traffic_light.set_state(
-                            node_id='center{}'.format(i),
-                            state='rGrG')
-
-                    self.currently_yellow[i] = 0
-            else:
-                if action:
-                    print('Changing node '+str(i))
-                    if self.direction[i] == 0:
-                        self.k.traffic_light.set_state(
-                            node_id='center{}'.format(i),
-                            state='yryr')
-                        
-                    else:
-                        self.k.traffic_light.set_state(
-                            node_id='center{}'.format(i),
-                            state='ryry')
-                    self.last_change[i] = 0.0
-                    self.direction[i] = not self.direction[i]
-                    self.currently_yellow[i] = 1
-
-
-
-
-    def compute_reward(self, rl_actions, **kwargs):
-        """No return, for testing purposes."""
-        return 0
-
-
-
-
-
