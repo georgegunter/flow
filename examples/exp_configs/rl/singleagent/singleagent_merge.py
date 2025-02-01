@@ -18,7 +18,7 @@ from flow.networks import MergeNetwork
 EXP_NUM = 0
 
 # time horizon of a single rollout
-HORIZON = 600
+HORIZON = 300
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
@@ -64,20 +64,20 @@ inflow.add(
     veh_type="human",
     edge="inflow_highway",
     vehs_per_hour=(1 - RL_PENETRATION) * FLOW_RATE,
-    departLane="free",
-    departSpeed=10)
+    depart_lane="free",
+    depart_speed=10)
 inflow.add(
     veh_type="rl",
     edge="inflow_highway",
     vehs_per_hour=RL_PENETRATION * FLOW_RATE,
-    departLane="free",
-    departSpeed=10)
+    depart_lane="free",
+    depart_speed=10)
 inflow.add(
     veh_type="human",
     edge="inflow_merge",
     vehs_per_hour=100,
-    departLane="free",
-    departSpeed=7.5)
+    depart_lane="free",
+    depart_speed=7.5)
 
 flow_params = dict(
     # name of the experiment

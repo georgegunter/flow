@@ -4,13 +4,14 @@ from flow.envs.bay_bridge import BayBridgeEnv
 from flow.envs.bottleneck import BottleneckAccelEnv, BottleneckEnv, \
     BottleneckDesiredVelocityEnv
 from flow.envs.traffic_light_grid import TrafficLightGridEnv, \
-    TrafficLightGridPOEnv, TrafficLightGridTestEnv, TrafficLightGridBenchmarkEnv
+    TrafficLightGridPOEnv, TrafficLightGridTestEnv, TrafficLightGridBenchmarkEnv,TrafficLightGridGenericObserver
 from flow.envs.ring.lane_change_accel import LaneChangeAccelEnv, \
     LaneChangeAccelPOEnv
 from flow.envs.ring.accel import AccelEnv
 from flow.envs.ring.wave_attenuation import WaveAttenuationEnv, \
     WaveAttenuationPOEnv
 from flow.envs.merge import MergePOEnv
+from flow.envs.MusicRow_env import MusicRow_POEnv
 from flow.envs.test import TestEnv
 
 # deprecated classes whose names have changed
@@ -27,6 +28,7 @@ __all__ = [
     'LaneChangeAccelPOEnv',
     'TrafficLightGridTestEnv',
     'MergePOEnv',
+    'MusicRow_POEnv',
     'BottleneckEnv',
     'BottleneckAccelEnv',
     'WaveAttenuationEnv',
@@ -34,6 +36,7 @@ __all__ = [
     'TrafficLightGridEnv',
     'TrafficLightGridPOEnv',
     'TrafficLightGridBenchmarkEnv',
+    'TrafficLightGridGenericObserver',
     'BottleneckDesiredVelocityEnv',
     'TestEnv',
     'BayBridgeEnv',

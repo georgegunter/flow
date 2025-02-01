@@ -122,6 +122,8 @@ class Experiment:
             "returns": [],
             "velocities": [],
             "outflows": [],
+            "states":[],
+            "actions":[]
         }
         info_dict.update({
             key: [] for key in self.custom_callables.keys()
@@ -142,7 +144,8 @@ class Experiment:
             state = self.env.reset()
             for j in range(num_steps):
                 t0 = time.time()
-                state, reward, done, _ = self.env.step(rl_actions(state))
+                action = rl_actions(state)
+                state, reward, done, _ = self.env.step(action)
                 t1 = time.time()
                 times.append(1 / (t1 - t0))
 
@@ -150,6 +153,9 @@ class Experiment:
                 veh_ids = self.env.k.vehicle.get_ids()
                 vel.append(np.mean(self.env.k.vehicle.get_speed(veh_ids)))
                 ret += reward
+
+                info_dict["states"].append(state)
+                info_dict["actions"].append(action)
 
                 # Compute the results for the custom callables.
                 for (key, lambda_func) in self.custom_callables.items():
@@ -163,6 +169,7 @@ class Experiment:
             info_dict["returns"].append(ret)
             info_dict["velocities"].append(np.mean(vel))
             info_dict["outflows"].append(outflow)
+
             for key in custom_vals.keys():
                 info_dict[key].append(np.mean(custom_vals[key]))
 
@@ -173,10 +180,6 @@ class Experiment:
             if self.env.simulator == "traci":
                 csv_path = self.env.k.simulation.save_emission(run_id=i)
 
-        # Print the averages/std for all variables in the info_dict.
-        for key in info_dict.keys():
-            print("Average, std {}: {}, {}".format(
-                key, np.mean(info_dict[key]), np.std(info_dict[key])))
 
         print("Total time:", time.time() - t)
         print("steps/second:", np.mean(times))
