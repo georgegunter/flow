@@ -11,6 +11,7 @@ from flow.envs.ring.accel import AccelEnv
 from flow.envs.ring.wave_attenuation import WaveAttenuationEnv, \
     WaveAttenuationPOEnv
 from flow.envs.merge import MergePOEnv
+from flow.envs.MusicRow_env import MusicRow_POEnv
 from flow.envs.test import TestEnv
 
 # deprecated classes whose names have changed
@@ -27,6 +28,7 @@ __all__ = [
     'LaneChangeAccelPOEnv',
     'TrafficLightGridTestEnv',
     'MergePOEnv',
+    'MusicRow_POEnv',
     'BottleneckEnv',
     'BottleneckAccelEnv',
     'WaveAttenuationEnv',

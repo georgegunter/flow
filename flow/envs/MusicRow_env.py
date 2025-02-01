@@ -15,17 +15,17 @@ import collections
 
 ADDITIONAL_ENV_PARAMS = {
     # maximum acceleration for autonomous vehicles, in m/s^2
-    "max_accel": 3,
+    "max_accel": 1.5,
     # maximum deceleration for autonomous vehicles, in m/s^2
-    "max_decel": 3,
+    "max_decel": 5,
     # desired velocity for all vehicles in the network, in m/s
-    "target_velocity": 25,
+    "target_velocity": 12,
     # maximum number of controllable vehicles in the network
     "num_rl": 5,
 }
 
 
-class MergePOEnv(Env):
+class MusicRow_POEnv(Env):
     """Partially observable merge environment.
 
     This environment is used to train autonomous vehicles to attenuate the
@@ -104,7 +104,7 @@ class MergePOEnv(Env):
     @property
     def observation_space(self):
         """See class definition."""
-        return Box(low=-1, high=1, shape=(5 * self.num_rl, ), dtype=np.float32)
+        return Box(low=-10, high=10, shape=(5 * self.num_rl, ), dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
@@ -140,6 +140,9 @@ class MergePOEnv(Env):
                     - self.k.vehicle.get_x_by_id(rl_id) \
                     - self.k.vehicle.get_length(rl_id)
 
+            if(self.k.vehicle.get_headway(rl_id) < 0):
+                print("Collision: "+rl_id)
+
             if follower in ["", None]:
                 # in case follower is not visible
                 follow_speed = 0
@@ -159,33 +162,46 @@ class MergePOEnv(Env):
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
-        if self.env_params.evaluate:
-            return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
-        else:
-            # return a reward of 0 if a collision occurred
-            if kwargs["fail"]:
-                print('Collision occurred, return 0 reward.')
-                return 0
 
-            # reward high system-level velocities
+        # return a reward of 0 if a collision occurred
+        if kwargs["fail"]:
+            print('Collision occurred, return 0 reward.')
+            return 0
+
+        # reward high system-level velocities
+        # if(ADDITIONAL_ENV_PARAMS["optimize_energy"]):
+        #     try:
+        #         cost1 = rewards.miles_per_gallon(self,veh_ids=self.rl_veh,gain=.001)
+        # else:
+        #     cost1 = rewards.desired_velocity(self, fail=kwargs["fail"])
+
+        try:
+            cost1 = rewards.miles_per_gallon(self,veh_ids=self.rl_veh,gain=.001)
+        except:
+            print('Enery consumption not working')
             cost1 = rewards.desired_velocity(self, fail=kwargs["fail"])
 
-            # penalize small time headways
-            cost2 = 0
-            t_min = 1  # smallest acceptable time headway
-            for rl_id in self.rl_veh:
-                lead_id = self.k.vehicle.get_leader(rl_id)
-                if lead_id not in ["", None] \
-                        and self.k.vehicle.get_speed(rl_id) > 0:
-                    t_headway = max(
-                        self.k.vehicle.get_headway(rl_id) /
-                        self.k.vehicle.get_speed(rl_id), 0)
-                    cost2 += min((t_headway - t_min) / t_min, 0)
 
-            # weights for cost1, cost2, and cost3, respectively
-            eta1, eta2 = 1.00, 0.10
+        # penalize small time headways
+        cost2 = 0
+        t_min = 1  # smallest acceptable time headway
+        for rl_id in self.rl_veh:
+            lead_id = self.k.vehicle.get_leader(rl_id)
+            if lead_id not in ["", None] \
+                    and self.k.vehicle.get_speed(rl_id) > 0:
+                t_headway = max(
+                    self.k.vehicle.get_headway(rl_id) /
+                    self.k.vehicle.get_speed(rl_id), 0)
+                cost2 += min((t_headway - t_min) / t_min, 0)
 
-            return max(eta1 * cost1 + eta2 * cost2, 0)
+        # weights for cost1, cost2, and cost3, respectively
+        eta1, eta2 = 1.00, 0.10
+
+        reward = max(eta1 * cost1 + eta2 * cost2, 0)
+
+        # print('Reward: '+str(reward))
+
+        return reward
 
     def additional_command(self):
         """See parent class.
@@ -230,3 +246,4 @@ class MergePOEnv(Env):
         self.leader = []
         self.follower = []
         return super().reset()
+

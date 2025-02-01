@@ -56,6 +56,10 @@ def parse_args(args):
         '--checkpoint_path', type=str, default=None,
         help='Directory with checkpoint to restore training from.')
 
+    parser.add_argument(
+        '--checkpoint_frequency', type=int, default=5,
+        help='How frequently checkpoints are made.')
+
     return parser.parse_known_args(args)[0]
 
 
@@ -200,7 +204,7 @@ def train_rllib(submodule, flags):
         "config": {
             **config
         },
-        "checkpoint_freq": 20,
+        "checkpoint_freq": flags.checkpoint_frequency,
         "checkpoint_at_end": True,
         "max_failures": 999,
         "stop": {
